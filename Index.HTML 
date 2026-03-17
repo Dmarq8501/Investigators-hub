@@ -3,26 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IA TERMINAL | v19.0 FINAL EDITION</title>
+    <title>IA TERMINAL | v20.0 MATRIX EDITION</title>
     <style>
-        :root { --red: #ff0000; --bg: #050505; --panel: rgba(20, 0, 0, 0.94); }
-        body { color: #eee; font-family: 'Courier New', Courier, monospace; margin: 0; background-color: var(--bg); display: flex; justify-content: center; min-height: 100vh; overflow-x: hidden; }
-        body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: url('https://r2.erweima.ai/i/1723145415712771509.png'); background-size: cover; background-position: center; opacity: 0.2; z-index: -2; }
+        :root { --red: #ff0000; --bg: #050505; --panel: rgba(15, 0, 0, 0.9); }
         
-        #login-screen { align-self: center; text-align: center; border: 2px solid var(--red); padding: 40px 20px; background: var(--panel); width: 85%; max-width: 380px; box-shadow: 0 0 25px var(--red); z-index: 10; border-radius: 10px; }
+        /* تنسيق الخلفية المتحركة */
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.2; /* شفافية لعدم إعاقة القراءة */
+        }
+
+        body { color: #eee; font-family: 'Courier New', Courier, monospace; margin: 0; background-color: var(--bg); display: flex; justify-content: center; min-height: 100vh; overflow-x: hidden; }
+        
+        #login-screen { align-self: center; text-align: center; border: 2px solid var(--red); padding: 40px 20px; background: var(--panel); width: 85%; max-width: 380px; box-shadow: 0 0 25px var(--red); z-index: 10; border-radius: 10px; position: relative; }
         #login-screen input { background: black; border: 1px solid var(--red); color: var(--red); padding: 15px; width: 100%; margin-top: 25px; text-align: center; box-sizing: border-box; font-size: 16px; outline: none; }
         #login-screen button { background: var(--red); color: black; border: none; padding: 12px; margin-top: 20px; cursor: pointer; font-weight: bold; width: 100%; }
         #error-msg { color: var(--red); font-size: 12px; margin-top: 10px; display: none; }
 
-        #main-interface { display: none; width: 100%; max-width: 1000px; padding: 20px; box-sizing: border-box; }
-        header { border-bottom: 2px solid var(--red); padding: 15px; text-align: center; margin-bottom: 25px; background: rgba(0,0,0,0.7); }
+        #main-interface { display: none; width: 100%; max-width: 1100px; padding: 20px; box-sizing: border-box; z-index: 5; }
+        header { border-bottom: 2px solid var(--red); padding: 15px; text-align: center; margin-bottom: 25px; background: rgba(0,0,0,0.8); }
         
         .grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px; }
         .category-box { background: var(--panel); border: 1px solid var(--red); padding: 25px 10px; text-align: center; cursor: pointer; transition: 0.3s; border-radius: 5px; }
         .category-box:hover { background: var(--red); color: black; box-shadow: 0 0 20px var(--red); }
         .category-box h3 { margin: 10px 0 0 0; font-size: 14px; }
 
-        #display-area { display: none; background: #000; border: 2px solid var(--red); padding: 20px; position: relative; box-shadow: 0 0 30px rgba(255, 0, 0, 0.5); min-height: 400px; margin-bottom: 50px; overflow-x: auto;}
+        #display-area { display: none; background: rgba(0,0,0,0.95); border: 2px solid var(--red); padding: 20px; position: relative; box-shadow: 0 0 30px rgba(255, 0, 0, 0.5); min-height: 400px; margin-bottom: 50px; overflow-x: auto;}
         .close-btn { position: absolute; top: 5px; left: 5px; color: var(--red); cursor: pointer; border: 1px solid var(--red); padding: 4px 10px; font-size: 12px; background: #000; z-index: 100; }
         
         input, textarea, select { width: 100%; background: #0a0a0a; border: 1px solid #444; color: white; padding: 10px; margin-bottom: 8px; box-sizing: border-box; font-family: inherit; }
@@ -31,16 +42,19 @@
         
         table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 15px; color: #fff; }
         th { background: var(--red); color: black; padding: 10px; border: 1px solid #500; }
-        td { border: 1px solid #333; padding: 10px; text-align: center; vertical-align: middle; background: rgba(10,10,10,0.8); }
+        td { border: 1px solid #333; padding: 10px; text-align: center; vertical-align: middle; background: rgba(10,10,10,0.8); word-break: break-word; }
         .wanted-img { width: 60px; height: 60px; object-fit: cover; border: 1px solid var(--red); display: block; margin: 0 auto; }
         .report-card { border: 1px solid #333; padding: 15px; margin-bottom: 15px; background: #080000; border-right: 3px solid var(--red); }
     </style>
 </head>
 <body>
 
+    <canvas id="matrix-canvas"></canvas>
+
     <div id="login-screen">
         <h2 style="color: var(--red); margin:0;">FEDERAL AUTHENTICATION</h2>
-        <input type="password" id="pass-input" placeholder="ENTER ACCESS CODE">
+        <p style="font-size: 10px; color: #666; margin-top: 5px;">ENTER SECURE ACCESS CODE</p>
+        <input type="password" id="pass-input" placeholder="••••">
         <div id="error-msg">ACCESS DENIED: INVALID CODE</div>
         <button onclick="checkPass()">LOGIN</button>
     </div>
@@ -48,7 +62,7 @@
     <div id="main-interface">
         <header>
             <h1 style="margin:0; color:var(--red); font-size: 18px;">INTELLIGENCE AGENCY TERMINAL [CLOUD]</h1>
-            <div id="auth-status" style="font-size: 10px; color: #00ff00;"></div>
+            <div id="auth-status" style="font-size: 10px; color: #00ff00; margin-top: 5px;"></div>
         </header>
 
         <div class="grid-container">
@@ -69,15 +83,49 @@
     </div>
 
     <script>
+        // --- إعدادات الخلفية المتحركة (Matrix) ---
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const katakana = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const drops = [];
+
+        for (let x = 0; x < columns; x++) drops[x] = 1;
+
+        function drawMatrix() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#ff0000"; // لون الأرقام أحمر
+            ctx.font = fontSize + "px monospace";
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = katakana.charAt(Math.floor(Math.random() * katakana.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 35);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // --- إعدادات قاعدة البيانات ---
         const SB_URL = "https://diomqatoqyjkliujiqkb.supabase.co/rest/v1";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpb21xYXRvcXlqa2xpdWppcWtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODMyMDIsImV4cCI6MjA4OTI1OTIwMn0.0BLdFMhyhvcIzIexDnycRHFFKNseHsEuFkh3hbHUPRs";
         const headers = { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Content-Type": "application/json", "Prefer": "return=representation" };
 
         let isAdmin = false; 
         let currentUserRank = "";
-        let currentUserName = "";
 
-        // نظام الرموز الـ 10 المخصصة
+        // نظام الرموز الـ 10
         const ACCESS_CODES = {
             "3205": { rank: "DIRECTOR", admin: true },
             "3204": { rank: "DEPUTY", admin: true },
@@ -93,28 +141,17 @@
 
         async function checkPass() {
             const val = document.getElementById('pass-input').value.trim();
-            const error = document.getElementById('error-msg');
-            
             if (ACCESS_CODES[val]) {
                 const user = ACCESS_CODES[val];
                 isAdmin = user.admin;
                 currentUserRank = user.rank;
-                currentUserName = user.rank; // نستخدم الرتبة كإسم مؤقت في السجلات
-
-                // تسجيل دخول في السحابة
-                await fetch(`${SB_URL}/logs`, { 
-                    method: 'POST', 
-                    headers, 
-                    body: JSON.stringify({ user_name: currentUserRank, entry_time: new Date().toLocaleString('ar-EG') }) 
-                });
-
+                await fetch(`${SB_URL}/logs`, { method: 'POST', headers, body: JSON.stringify({ user_name: currentUserRank, entry_time: new Date().toLocaleString('ar-EG') }) });
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('main-interface').style.display = 'block';
-                document.getElementById('auth-status').innerText = "● LOGGED AS: " + currentUserRank + (isAdmin ? " [ADMIN_LEVEL]" : " [AGENT_LEVEL]");
-                
+                document.getElementById('auth-status').innerText = "● LOGGED AS: " + currentUserRank;
                 if(isAdmin) document.getElementById('logs-btn').style.display = 'block';
             } else {
-                error.style.display = 'block';
+                document.getElementById('error-msg').style.display = 'block';
                 document.getElementById('pass-input').value = "";
             }
         }
@@ -123,7 +160,7 @@
 
         async function deleteItem(table, id) {
             if(!isAdmin) return alert("خطأ: لا تملك صلاحيات الحذف.");
-            if(confirm("تأكيد حذف البيانات نهائياً؟")) {
+            if(confirm("تأكيد الحذف النهائي؟")) {
                 await fetch(`${SB_URL}/${table}?id=eq.${id}`, { method: 'DELETE', headers });
                 showContent(table);
             }
@@ -132,7 +169,7 @@
         async function showContent(type) {
             const body = document.getElementById('content-body');
             document.getElementById('display-area').style.display = "block";
-            body.innerHTML = "<p>جاري تحميل البيانات الفيدرالية...</p>";
+            body.innerHTML = "<p style='color:red'>جاري مزامنة البيانات...</p>";
             
             if(type === 'ops') await renderOps(body);
             else if(type === 'wanted') await renderWanted(body);
@@ -141,18 +178,17 @@
             else if(type === 'reports') await renderReports(body);
             else if(type === 'logs') await renderLogs(body);
             else if(type === 'alerts') await renderAlerts(body);
-            else if(type === 'map') renderMap(body);
+            else if(type === 'map') body.innerHTML = `<iframe src="https://gta-5-map.com/" style="width: 100%; height: 500px; border: 1px solid red;"></iframe>`;
         }
 
-        // --- دوال العرض (تم تحديثها لتشمل كافة الخانات المطلوبة) ---
-
+        // العمليات
         async function renderOps(c) {
             const res = await fetch(`${SB_URL}/operations?select=*&order=id.desc`, { headers });
             const data = await res.json();
-            let h = `<h3>⚔️ العمليات العسكرية</h3>`;
-            if(isAdmin) h += `<input id="op1" placeholder="اسم العملية"><input id="op2" placeholder="الموقع المستهدف"><select id="op3"><option>حالية</option><option>قادمة</option><option>سابقة</option></select><textarea id="op4" placeholder="التفاصيل والأهداف"></textarea><button class="action-btn" onclick="addOp()">إضافة العملية</button>`;
-            h += `<table><tr><th>اسم العملية</th><th>الموقع</th><th>الحالة</th><th>التفاصيل</th><th>إدارة</th></tr>`;
-            data.forEach(d => h += `<tr><td>${d.name}</td><td>${d.place}</td><td>${d.status}</td><td style="font-size:10px">${d.details}</td><td>${isAdmin ? `<button class="del-btn" onclick="deleteItem('operations',${d.id})">حذف</button>` : '-'}</td></tr>`);
+            let h = `<h3>⚔️ العمليات</h3>`;
+            if(isAdmin) h += `<input id="op1" placeholder="الاسم"><input id="op2" placeholder="الموقع"><select id="op3"><option>حالية</option><option>سابقة</option></select><textarea id="op4" placeholder="التفاصيل"></textarea><button class="action-btn" onclick="addOp()">إضافة</button>`;
+            h += `<table><tr><th>العملية</th><th>الموقع</th><th>الحالة</th><th>التفاصيل</th><th>إدارة</th></tr>`;
+            data.forEach(d => h += `<tr><td>${d.name}</td><td>${d.place}</td><td>${d.status}</td><td>${d.details}</td><td>${isAdmin ? `<button class="del-btn" onclick="deleteItem('operations',${d.id})">حذف</button>` : '-'}</td></tr>`);
             c.innerHTML = h + "</table>";
         }
         async function addOp() {
@@ -160,13 +196,14 @@
             showContent('ops');
         }
 
+        // المطلوبين
         async function renderWanted(c) {
             const res = await fetch(`${SB_URL}/wanted?select=*&order=id.desc`, { headers });
             const data = await res.json();
-            let h = `<h3>🚨 قائمة المطلوبين للعدالة</h3>`;
-            if(isAdmin) h += `<input id="w1" placeholder="الاسم الكامل"><input id="w2" placeholder="مستوى الخطورة"><input id="w3" placeholder="رابط صورة الهدف"><input id="w4" placeholder="رقم الملف الجنائي"><textarea id="w5" placeholder="تفاصيل الجرائم والوصف"></textarea><button class="action-btn" onclick="addWanted()">إضافة هدف</button>`;
-            h += `<table><tr><th>الصورة</th><th>الاسم</th><th>الخطورة</th><th>رقم الملف</th><th>التفاصيل</th><th>إدارة</th></tr>`;
-            data.forEach(d => h += `<tr><td><img src="${d.img_url}" class="wanted-img" onerror="this.src='https://via.placeholder.com/60'"></td><td>${d.name}</td><td>${d.status}</td><td>${d.report_num}</td><td style="font-size:10px">${d.detail}</td><td>${isAdmin ? `<button class="del-btn" onclick="deleteItem('wanted',${d.id})">تصفية</button>` : '-'}</td></tr>`);
+            let h = `<h3>🚨 المطلوبين</h3>`;
+            if(isAdmin) h += `<input id="w1" placeholder="الاسم"><input id="w2" placeholder="الخطورة"><input id="w3" placeholder="رابط الصورة"><input id="w4" placeholder="رقم الملف"><textarea id="w5" placeholder="التفاصيل الجنائية"></textarea><button class="action-btn" onclick="addWanted()">إضافة</button>`;
+            h += `<table><tr><th>الصورة</th><th>الاسم</th><th>الخطورة</th><th>الملف</th><th>التفاصيل</th><th>إدارة</th></tr>`;
+            data.forEach(d => h += `<tr><td><img src="${d.img_url}" class="wanted-img" onerror="this.src='https://via.placeholder.com/60'"></td><td>${d.name}</td><td>${d.status}</td><td>${d.report_num}</td><td>${d.detail}</td><td>${isAdmin ? `<button class="del-btn" onclick="deleteItem('wanted',${d.id})">تصفية</button>` : '-'}</td></tr>`);
             c.innerHTML = h + "</table>";
         }
         async function addWanted() {
@@ -174,13 +211,14 @@
             showContent('wanted');
         }
 
+        // المخبرين
         async function renderIntel(c) {
             const res = await fetch(`${SB_URL}/intel?select=*&order=id.desc`, { headers });
             const data = await res.json();
-            let h = `<h3>🕵️ شبكة المخبرين السرية</h3>`;
-            if(isAdmin) h += `<input id="i1" placeholder="الاسم المستعار"><input id="i2" placeholder="منطقة السكن"><input id="i3" placeholder="رقم الاتصال"><input id="i4" placeholder="رابط الصورة"><textarea id="i5" placeholder="ملاحظات إضافية"></textarea><button class="action-btn" onclick="addIntel()">تسجيل مخبر</button>`;
-            h += `<table><tr><th>الصورة</th><th>الاسم</th><th>السكن</th><th>الاتصال</th><th>ملاحظات</th><th>إدارة</th></tr>`;
-            data.forEach(d => h += `<tr><td><img src="${d.img_url}" class="wanted-img" onerror="this.src='https://via.placeholder.com/60'"></td><td>${d.name}</td><td>${d.residence}</td><td>${d.phone}</td><td style="font-size:10px">${d.detail}</td><td>${isAdmin ? `<button class="del-btn" onclick="deleteItem('intel',${d.id})">شطب</button>` : '-'}</td></tr>`);
+            let h = `<h3>🕵️ المخبرين</h3>`;
+            if(isAdmin) h += `<input id="i1" placeholder="الاسم المستعار"><input id="i2" placeholder="السكن"><input id="i3" placeholder="الهاتف"><input id="i4" placeholder="الصورة"><textarea id="i5" placeholder="ملاحظات"></textarea><button class="action-btn" onclick="addIntel()">تسجيل</button>`;
+            h += `<table><tr><th>الصورة</th><th>الاسم</th><th>السكن</th><th>الهاتف</th><th>ملاحظات</th><th>إدارة</th></tr>`;
+            data.forEach(d => h += `<tr><td><img src="${d.img_url}" class="wanted-img" onerror="this.src='https://via.placeholder.com/60'"></td><td>${d.name}</td><td>${d.residence}</td><td>${d.phone}</td><td>${d.detail}</td><td>${isAdmin ? `<button class="del-btn" onclick="deleteItem('intel',${d.id})">شطب</button>` : '-'}</td></tr>`);
             c.innerHTML = h + "</table>";
         }
         async function addIntel() {
@@ -188,12 +226,13 @@
             showContent('intel');
         }
 
+        // العملاء
         async function renderAgents(c) {
             const res = await fetch(`${SB_URL}/agents?select=*&order=id.desc`, { headers });
             const data = await res.json();
-            let h = `<h3>🎖️ سجل العملاء</h3>`;
-            if(isAdmin) h += `<input id="a1" placeholder="الاسم الرباعي"><input id="a2" placeholder="الكود السري"><input id="a3" placeholder="الرتبة العسكرية"><button class="action-btn" onclick="addAgent()">تعيين عميل</button>`;
-            h += `<table><tr><th>اسم العميل</th><th>الرتبة</th><th>الكود</th><th>إدارة</th></tr>`;
+            let h = `<h3>🎖️ العملاء</h3>`;
+            if(isAdmin) h += `<input id="a1" placeholder="الاسم"><input id="a2" placeholder="الكود السري"><input id="a3" placeholder="الرتبة"><button class="action-btn" onclick="addAgent()">تعيين</button>`;
+            h += `<table><tr><th>الاسم</th><th>الرتبة</th><th>الكود</th><th>إدارة</th></tr>`;
             data.forEach(a => h += `<tr><td>${a.name}</td><td>${a.rank}</td><td><code>${a.code}</code></td><td>${isAdmin ? `<button class="del-btn" onclick="deleteItem('agents',${a.id})">فصل</button>` : '-'}</td></tr>`);
             c.innerHTML = h + "</table>";
         }
@@ -202,22 +241,13 @@
             showContent('agents');
         }
 
+        // التقارير
         async function renderReports(c) {
             const res = await fetch(`${SB_URL}/reports?select=*&order=id.desc`, { headers });
             const data = await res.json();
-            let h = `<h3>📄 أرشيف التقارير الميدانية</h3>
-            <input id="r1" placeholder="رقم التقرير أو العنوان">
-            <input id="r3" placeholder="رابط الصورة المرفق">
-            <textarea id="r2" placeholder="محتوى التقرير بالكامل..."></textarea>
-            <button class="action-btn" onclick="addRep()">إرسال التقرير</button>`;
-            h += `<table><tr><th>رقم التقرير</th><th>الكاتب</th><th>التاريخ</th><th>المحتوى والمرفقات</th><th>إدارة</th></tr>`;
-            data.forEach(r => h += `<tr>
-                <td>${r.report_num}</td>
-                <td>${r.author}</td>
-                <td><small>${r.date_str}</small></td>
-                <td style="text-align:right; font-size:11px; white-space: pre-wrap;">${r.content}${r.img_url ? `<br><a href="${r.img_url}" target="_blank" style="color:red">[عرض المرفق]</a>` : ''}</td>
-                <td>${isAdmin ? `<button class="del-btn" onclick="deleteItem('reports',${r.id})">حذف</button>` : '-'}</td>
-            </tr>`);
+            let h = `<h3>📄 التقارير</h3><input id="r1" placeholder="رقم التقرير"><input id="r3" placeholder="رابط صورة المرفق"><textarea id="r2" placeholder="نص التقرير..."></textarea><button class="action-btn" onclick="addRep()">إرسال</button>`;
+            h += `<table><tr><th>الرقم</th><th>الكاتب</th><th>التاريخ</th><th>المحتوى</th><th>إدارة</th></tr>`;
+            data.forEach(r => h += `<tr><td>${r.report_num}</td><td>${r.author}</td><td><small>${r.date_str}</small></td><td style="text-align:right; white-space: pre-wrap;">${r.content}${r.img_url ? `<br><a href='${r.img_url}' target='_blank' style='color:red'>[المرفق]</a>` : ''}</td><td>${isAdmin ? `<button class="del-btn" onclick="deleteItem('reports',${r.id})">حذف</button>` : '-'}</td></tr>`);
             c.innerHTML = h + "</table>";
         }
         async function addRep() {
@@ -225,16 +255,12 @@
             showContent('reports');
         }
 
-        function renderMap(c) {
-            c.innerHTML = `<h3>📍 رادار المواقع</h3><iframe src="https://gta-5-map.com/" style="width: 100%; height: 500px; border: 1px solid var(--red);"></iframe>`;
-        }
-
         async function renderAlerts(c) {
             const res = await fetch(`${SB_URL}/alerts?select=*&order=id.desc`, { headers });
             const data = await res.json();
             let h = `<h3>⚠️ التنبيهات</h3>`;
             if(isAdmin) h += `<input id="al1" placeholder="نص التنبيه"><button class="action-btn" onclick="addAlert()">بث</button>`;
-            data.forEach(a => h += `<div class="report-card" style="color:orange;"><b>عاجل:</b> ${a.text}</div>`);
+            data.forEach(a => h += `<div class="report-card" style="color:orange;"><b>بث عاجل:</b> ${a.text}</div>`);
             c.innerHTML = h;
         }
         async function addAlert() {
@@ -246,7 +272,7 @@
             const res = await fetch(`${SB_URL}/logs?select=*&order=id.desc`, { headers });
             const data = await res.json();
             let h = `<h3>📊 سجلات الدخول</h3>`;
-            data.forEach(l => h += `<div style="font-size:10px; border-bottom:1px solid #222; padding:5px;">[${l.entry_time}] - ${l.user_name} دخل النظام.</div>`);
+            data.forEach(l => h += `<div style="font-size:10px; border-bottom:1px solid #222; padding:5px;">[${l.entry_time}] - العميل: ${l.user_name} (دخول مصرح).</div>`);
             c.innerHTML = h;
         }
     </script>

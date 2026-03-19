@@ -17,6 +17,24 @@
             opacity: 0.15;
         }
 
+        /* تأثير المسح الضوئي (Scanning Line) */
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 9999;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(255, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0) 100%);
+            opacity: 0.1;
+            position: fixed;
+            bottom: 100%;
+            left: 0;
+            pointer-events: none;
+            animation: scan 4s linear infinite;
+        }
+        @keyframes scan {
+            0% { bottom: 100%; }
+            100% { bottom: -100px; }
+        }
+
         /* شريط التنبيه العاجل العلوي */
         #emergency-banner {
             display: none;
@@ -178,7 +196,7 @@
         /* 1. تصميم ملف (Folder Style) - مستخدم للقضايا، التقارير، والمصادر */
         .file-folder { 
             background: #2a2a2a; border: 1px solid #444; position: relative; padding: 20px; padding-top: 40px;
-            box-shadow: 8px 8px 0px rgba(0,0,0,0.4); transition: 0.3s; min-height: 200px;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.4); transition: 0.3s; min-height: 50px; cursor: pointer;
         }
         .file-folder:hover { transform: translateY(-5px); border-color: var(--red); box-shadow: 12px 12px 0px rgba(255,0,0,0.1); }
         .file-tab { 
@@ -186,6 +204,22 @@
             font-size: 10px; font-weight: bold; clip-path: polygon(15% 0, 100% 0, 100% 100%, 0 100%);
         }
         .file-folder:hover .file-tab { background: var(--red); color: #000; }
+
+        /* Fold / Unfold Effects */
+        .folder-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out, opacity 0.3s;
+            opacity: 0;
+            margin-top: 0;
+        }
+        .file-folder.open .folder-details {
+            max-height: 1000px;
+            opacity: 1;
+            margin-top: 15px;
+            border-top: 1px solid #444;
+            padding-top: 15px;
+        }
 
         /* 2. تصميم بطاقة هوية (ID Card) - للمحققين */
         .agent-id-card {
@@ -221,11 +255,17 @@
         .stamp-red { color: #f00; border-color: #f00; }
         .stamp-green { color: #0f0; border-color: #0f0; }
 
+        /* تصميم كرت الإحصائيات */
+        .stat-card {
+            background: #111; border-right: 3px solid var(--red); padding: 15px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .stat-val { font-size: 20px; font-weight: bold; color: var(--red); }
+
     </style>
 </head>
 <body>
-
-    <div id="emergency-banner">CASE ALERT: CRITICAL UPDATE - DATA SYNCHRONIZATION IN PROGRESS</div>
+    <div class="scanline"></div> <div id="emergency-banner">CASE ALERT: CRITICAL UPDATE - DATA SYNCHRONIZATION IN PROGRESS</div>
     <canvas id="matrix-canvas"></canvas>
 
     <div id="suspension-screen">
@@ -280,7 +320,10 @@
             <div class="category-box" onclick="showContent('reports')"><span class="icon">📄</span><h3>التقارير</h3></div>
             <div class="category-box" onclick="showContent('signals')"><span class="icon">📞</span><h3>الاتصالات</h3></div>
             <div class="category-box" onclick="showContent('map')"><span class="icon">📍</span><h3>تحديد المواقع الجغرافية</h3></div>
-            <div id="logs-btn" class="category-box" onclick="showContent('logs')" style="display:none;"><span class="icon">📊</span><h3>سجل النشاط</h3></div>
+            <div id="stats-btn" class="category-box" onclick="showContent('stats')" style="display:none;"><span class="icon">📊</span><h3>الإحصائيات</h3></div>
+            <div id="rank-manager-btn" class="category-box" onclick="showContent('rank_manager')" style="display:none; border: 1px solid var(--warn-gold);"><span class="icon">🛡️</span><h3 style="color:var(--warn-gold);">التحكم بالرتب</h3></div>
+            
+            <div id="logs-btn" class="category-box" onclick="showContent('logs')" style="display:none;"><span class="icon">🛡️</span><h3>سجل النشاط</h3></div>
             <div id="codes-btn" class="category-box" onclick="showContent('manage_codes')" style="display:none;"><span class="icon">🔑</span><h3>توليد مفاتيح الوصول</h3></div>
             <div class="category-box" onclick="showContent('alerts')"><span class="icon">⚠️</span><h3>التنبيهات</h3></div>
         </div>
@@ -292,6 +335,29 @@
     </div>
 
     <script>
+        // --- إضافة تأثير صوت الـ Beep عند الضغط على أي زر ---
+        document.addEventListener('click', function(e) {
+            if (e.target.tagName === 'BUTTON' || e.target.closest('.category-box') || e.target.closest('.close-btn')) {
+                playBeepSound();
+            }
+        });
+
+        function playBeepSound() {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = context.createOscillator();
+            const gainNode = context.createGain();
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(800, context.currentTime); // التردد
+            gainNode.gain.setValueAtTime(0.1, context.currentTime); // مستوى الصوت
+
+            oscillator.connect(gainNode);
+            gainNode.connect(context.destination);
+
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.05); // مدة الصوت قصيرة جداً
+        }
+
         // --- الأساسيات واسترجاع البيانات (بدون تغيير) ---
         const canvas = document.getElementById('matrix-canvas');
         const ctx = canvas.getContext('2d');
@@ -328,7 +394,7 @@
             "CADET": "Cadet Detective", "SOLO CADET": "Solo Cadet Detective"
         };
 
-        const ACCESS_CODES = { "3205": { rank: "DIRECTOR", admin: true }, "3204": { rank: "DEPUTY", admin: true }, "3203": { rank: "GENERAL", admin: true }, "3202": { rank: "COLONEL", admin: true }, "3201": { rank: "MAJOR", admin: true }, "3100": { rank: "CAPTAIN", admin: true }, "3000": { rank: "LIEUTENANT", admin: true }, "2000": { rank: "SERGEANT", admin: false }, "1500": { rank: "OFFICER", admin: false }, "1200": { rank: "SOLO CADET", admin: false }, "1000": { rank: "CADET", admin: false } };
+        const ACCESS_CODES = { "65554874": { rank: "DIRECTOR", admin: true }, "61113266": { rank: "DEPUTY", admin: true }, "65000868": { rank: "GENERAL", admin: true }, "666666": { rank: "COLONEL", admin: true }, "555555": { rank: "MAJOR", admin: true }, "333": { rank: "CAPTAIN", admin: true }, "10000387464": { rank: "LIEUTENANT", admin: true }, "83635474": { rank: "SERGEANT", admin: false }, "746464747": { rank: "OFFICER", admin: false }, "74646474": { rank: "SOLO CADET", admin: false }, "8474647": { rank: "CADET", admin: false } };
 
         let tempRank = ""; let verifiedCodeData = null; 
 
@@ -414,7 +480,17 @@
             isAdmin = rankInfo ? rankInfo.admin : false;
             document.getElementById('login-screen').style.display = 'none'; document.getElementById('main-interface').style.display = 'block'; document.getElementById('news-ticker').style.display = 'block'; 
             document.getElementById('auth-status').innerText = `ONLINE // DETECTIVE: ${RANK_DISPLAY_NAMES[currentUserRank] || currentUserRank} | ${currentUserName}`;
-            if(isAdmin) { document.getElementById('logs-btn').style.display = 'block'; document.getElementById('codes-btn').style.display = 'block'; }
+            
+            // إظهار أزرار الإدارة والقيادة
+            if(isAdmin) { 
+                document.getElementById('logs-btn').style.display = 'block'; 
+                document.getElementById('codes-btn').style.display = 'block'; 
+            }
+            if(["DIRECTOR", "DEPUTY"].includes(currentUserRank)) {
+                document.getElementById('stats-btn').style.display = 'block';
+                document.getElementById('rank-manager-btn').style.display = 'block'; // تفعيل زر إدارة الرتب
+            }
+
             fetch(`${SB_URL}/logs`, { method: 'POST', headers, body: JSON.stringify({ user_name: `${RANK_DISPLAY_NAMES[currentUserRank] || currentUserRank} | ${currentUserName}`, entry_time: new Date().toLocaleString('ar-EG') }) });
             syncEmergencyAlerts();
         }
@@ -455,7 +531,7 @@
             document.getElementById('display-area').style.display = "block";
             syncEmergencyAlerts();
             body.innerHTML = "<p style='color:red;'>DECRYPTING DATA STREAM...</p>";
-            const filterHTML = type !== 'map' ? `<input type="text" id="search-filter" onkeyup="applyFilter()" placeholder="DATABASE QUERY // SEARCH...">` : "";
+            const filterHTML = (type !== 'map' && type !== 'stats' && type !== 'rank_manager') ? `<input type="text" id="search-filter" onkeyup="applyFilter()" placeholder="DATABASE QUERY // SEARCH...">` : "";
 
             if(type === 'ops') await renderOps(body);
             else if(type === 'wanted') await renderWanted(body);
@@ -465,9 +541,11 @@
             else if(type === 'logs') await renderLogs(body);
             else if(type === 'alerts') await renderAlerts(body);
             else if(type === 'manage_codes') await renderCodeManager(body);
+            else if(type === 'stats') await renderStats(body);
+            else if(type === 'rank_manager') await renderRankManager(body);
             else if(type === 'map') body.innerHTML = `<iframe src="https://gta-5-map.com/" style="width: 100%; height: 500px; border: 1px solid #300;"></iframe>`;
             else if(type === 'signals') await renderSignals(body);
-            if(type !== 'map') body.insertAdjacentHTML('afterbegin', filterHTML);
+            if(type !== 'map' && type !== 'stats' && type !== 'rank_manager') body.insertAdjacentHTML('afterbegin', filterHTML);
         }
 
         function applyFilter() {
@@ -487,6 +565,117 @@
 
         function isOwner(authorString) { const identity = `${RANK_DISPLAY_NAMES[currentUserRank] || currentUserRank} | ${currentUserName}`; return authorString && authorString.includes(identity); }
 
+        // وظيفة التبديل بين الفتح والإغلاق
+        function toggleFolder(el) {
+            el.classList.toggle('open');
+        }
+
+        // --- وظيفة إدارة الرتب (جديد) ---
+        async function renderRankManager(c) {
+            if (!["DIRECTOR", "DEPUTY"].includes(currentUserRank)) return c.innerHTML = "ACCESS DENIED";
+            c.innerHTML = "<h3>🛡️ تعديل رتب وصلاحيات الموظفين</h3><p style='color:red;'>جاري سحب بيانات الهويات...</p>";
+            
+            const [usersRes, agentsRes] = await Promise.all([
+                fetch(`${SB_URL}/users?select=*`, { headers }),
+                fetch(`${SB_URL}/agents?select=*`, { headers })
+            ]);
+            
+            const users = await usersRes.json();
+            const agents = await agentsRes.json();
+            
+            let h = `<div style="overflow-x:auto;"><table><tr><th>المستخدم</th><th>الرتبة الحالية</th><th>تعديل الرتبة</th><th>الإجراء</th></tr>`;
+            
+            users.forEach(u => {
+                h += `<tr>
+                    <td><b>${u.username}</b></td>
+                    <td id="rank-text-${u.id}">${RANK_DISPLAY_NAMES[u.rank] || u.rank}</td>
+                    <td>
+                        <select id="new-rank-sel-${u.id}" style="padding:5px; font-size:11px;">
+                            ${Object.keys(RANK_DISPLAY_NAMES).map(r => `<option value="${r}" ${u.rank === r ? 'selected' : ''}>${RANK_DISPLAY_NAMES[r]}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <button class="edit-report-btn" onclick="updateUserRank(${u.id}, '${u.username}')">تحديث</button>
+                    </td>
+                </tr>`;
+            });
+            c.innerHTML = h + "</table></div>";
+        }
+
+        async function updateUserRank(userId, username) {
+            const newRank = document.getElementById(`new-rank-sel-${userId}`).value;
+            if(confirm(`هل أنت متأكد من تغيير رتبة (${username}) إلى (${RANK_DISPLAY_NAMES[newRank]})؟`)) {
+                try {
+                    // 1. تحديث جدول المستخدمين (users) لتمكينه من الدخول بالرتبة الجديدة
+                    await fetch(`${SB_URL}/users?id=eq.${userId}`, { 
+                        method: 'PATCH', 
+                        headers, 
+                        body: JSON.stringify({ rank: newRank }) 
+                    });
+                    
+                    // 2. تحديث جدول المحققين (agents) لتغيير المسمى الوظيفي في الهوية
+                    await fetch(`${SB_URL}/agents?name=eq.${username}`, { 
+                        method: 'PATCH', 
+                        headers, 
+                        body: JSON.stringify({ rank: newRank }) 
+                    });
+                    
+                    alert("تم تحديث الرتبة بنجاح في كافة السجلات.");
+                    showContent('rank_manager');
+                } catch(e) { alert("حدث خطأ أثناء التحديث."); }
+            }
+        }
+
+        // --- وظيفة الإحصائيات ---
+        async function renderStats(c) {
+            if (!["DIRECTOR", "DEPUTY"].includes(currentUserRank)) return c.innerHTML = "ACCESS DENIED";
+            
+            c.innerHTML = "<p style='color:red;'>جاري تحليل قاعدة البيانات...</p>";
+            
+            const [agentsRes, reportsRes, opsRes] = await Promise.all([
+                fetch(`${SB_URL}/agents?select=*`, { headers }),
+                fetch(`${SB_URL}/reports?select=author`, { headers }),
+                fetch(`${SB_URL}/operations?select=details`, { headers })
+            ]);
+            
+            const agents = await agentsRes.json();
+            const reports = await reportsRes.json();
+            const ops = await opsRes.json();
+            
+            let h = `<h3>📊 إحصائيات الأداء المهني</h3>`;
+            h += `<div style="margin-top:20px;">`;
+            
+            agents.forEach(a => {
+                const agentFullTag = `${RANK_DISPLAY_NAMES[a.rank] || a.rank} | ${a.name}`;
+                
+                // حساب عدد التقارير
+                const reportCount = reports.filter(r => r.author && r.author.includes(agentFullTag)).length;
+                
+                // حساب عدد العمليات المشارك بها
+                const opCount = ops.filter(o => o.details && o.details.includes(agentFullTag)).length;
+                
+                h += `
+                <div class="stat-card">
+                    <div>
+                        <b style="color:#fff;">${a.name}</b><br>
+                        <small style="color:#666;">${RANK_DISPLAY_NAMES[a.rank] || a.rank}</small>
+                    </div>
+                    <div style="display:flex; gap:20px; text-align:center;">
+                        <div>
+                            <div class="stat-val">${reportCount}</div>
+                            <div style="font-size:9px;">تقارير</div>
+                        </div>
+                        <div>
+                            <div class="stat-val" style="color:#0f0;">${opCount}</div>
+                            <div style="font-size:9px;">عمليات</div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            
+            c.innerHTML = h + "</div>";
+        }
+
         // --- التحديث البصري للقضايا النشطة ---
         async function renderOps(c) {
             const res = await fetch(`${SB_URL}/operations?select=*&order=id.desc`, { headers });
@@ -497,16 +686,19 @@
             data.forEach(d => { 
                 if(!canUserSeeItem(d.allowed_ranks)) return;
                 const authorPart = d.details ? d.details.split(" (By:")[1]?.replace(")", "") : "SYSTEM";
-                h += `<div class="file-folder">
+                h += `<div class="file-folder" onclick="toggleFolder(this)">
                     <div class="file-tab">CASE #${d.id}</div>
-                    <b style="color:var(--red); display:block; margin-bottom:10px;">${d.name}</b>
-                    <div style="font-size:11px; margin-bottom:10px;"><b>الموقع:</b> ${d.place} | <b>الحالة:</b> ${d.status}</div>
-                    <div style="font-size:11px; color:#999; border-top:1px solid #333; padding-top:10px;">${d.details.split(" (By:")[0]}</div>
-                    <div class="stamp ${d.status === 'نشطة' ? 'stamp-red' : 'stamp-green'}">${d.status}</div>
-                    <div style="margin-top:15px; font-size:9px; color:#555;">المحقق المسؤول: ${authorPart}</div>
-                    <div style="margin-top:10px;">
-                        ${isAdmin ? `<button class="del-btn" onclick="deleteItem('operations',${d.id})">حذف</button>` : ''}
-                        ${isOwner(authorPart) ? `<button class="edit-report-btn" onclick='prepareEditOp(${JSON.stringify(d)})'>تعديل</button>` : ''}
+                    <b style="color:var(--red); display:block;">${d.name}</b>
+                    
+                    <div class="folder-details">
+                        <div style="font-size:11px; margin-bottom:10px;"><b>الموقع:</b> ${d.place} | <b>الحالة:</b> ${d.status}</div>
+                        <div style="font-size:11px; color:#999; border-top:1px solid #333; padding-top:10px;">${d.details.split(" (By:")[0]}</div>
+                        <div class="stamp ${d.status === 'نشطة' ? 'stamp-red' : 'stamp-green'}">${d.status}</div>
+                        <div style="margin-top:15px; font-size:9px; color:#555;">المحقق المسؤول: ${authorPart}</div>
+                        <div style="margin-top:10px;" onclick="event.stopPropagation()">
+                            ${isAdmin ? `<button class="del-btn" onclick="deleteItem('operations',${d.id})">حذف</button>` : ''}
+                            ${isOwner(authorPart) ? `<button class="edit-report-btn" onclick='prepareEditOp(${JSON.stringify(d)})'>تعديل</button>` : ''}
+                        </div>
                     </div>
                 </div>`;
             });
@@ -631,18 +823,23 @@
             h += `<div class="universal-grid">`;
             reports.forEach(r => {
                 if(!canUserSeeItem(r.allowed_ranks)) return;
-                h += `<div class="file-folder" style="padding-left:110px;">
+                h += `<div class="file-folder" style="padding-left:110px;" onclick="toggleFolder(this)">
                     <div class="file-tab">FILE RE-${r.report_num}</div>
                     <img src="${r.img_url}" style="position:absolute; left:15px; top:40px; width:80px; height:100px; border:1px solid #555; background:#000;" onerror="this.src='https://via.placeholder.com/80x100'">
-                    <b style="color:#fff; font-size:15px; display:block;">${r.author_id}</b>
-                    <div style="font-size:10px; color:var(--red); margin:5px 0;">التهم: ${r.status || 'None'}</div>
-                    <div style="font-size:10px; color:#0f0; margin-bottom:5px;">العقوبة: ${r.place || 'لا يوجد'}</div>
-                    <div style="font-size:11px; height:60px; overflow:hidden; color:#999; margin-bottom:10px;">${r.content}</div>
-                    <div class="stamp stamp-green" style="bottom:40px;">CLOSED</div>
-                    <div style="font-size:9px; color:#555;">By: ${r.author}</div>
-                    <div style="margin-top:10px;">
-                        ${isAdmin ? `<button class="del-btn" onclick="deleteItem('reports',${r.id})">حذف</button>` : ''}
-                        ${isOwner(r.author) ? `<button class="edit-report-btn" onclick='prepareEditReport(${JSON.stringify(r)})'>تعديل</button>` : ''}
+                    
+                    <b style="color:#fff; font-size:15px; display:block;">FILE ID: ${r.report_num}</b>
+                    
+                    <div class="folder-details">
+                        <b style="color:var(--red); font-size:14px;">المتهم: ${r.author_id}</b>
+                        <div style="font-size:10px; color:var(--red); margin:5px 0;">التهم: ${r.status || 'None'}</div>
+                        <div style="font-size:10px; color:#0f0; margin-bottom:5px;">العقوبة: ${r.place || 'لا يوجد'}</div>
+                        <div style="font-size:11px; color:#999; margin-bottom:10px;">${r.content}</div>
+                        <div class="stamp stamp-green" style="bottom:40px;">CLOSED</div>
+                        <div style="font-size:9px; color:#555;">By: ${r.author}</div>
+                        <div style="margin-top:10px;" onclick="event.stopPropagation()">
+                            ${isAdmin ? `<button class="del-btn" onclick="deleteItem('reports',${r.id})">حذف</button>` : ''}
+                            ${isOwner(r.author) ? `<button class="edit-report-btn" onclick='prepareEditReport(${JSON.stringify(r)})'>تعديل</button>` : ''}
+                        </div>
                     </div>
                 </div>`;
             });
@@ -697,6 +894,117 @@
         async function deleteGlobalCharge(id) { if(confirm("حذف هذه التهمة؟")) { await fetch(`${SB_URL}/charges?id=eq.${id}`, { method: 'DELETE', headers }); showContent('reports'); } }
         async function addAlert() { const identity = `${RANK_DISPLAY_NAMES[currentUserRank] || currentUserRank} | ${currentUserName}`; await fetch(`${SB_URL}/alerts`, { method: 'POST', headers, body: JSON.stringify({ text: `${document.getElementById('al1').value} (By: ${identity})`, date_str: new Date().toLocaleString('ar-EG') }) }); showContent('alerts'); }
         async function generateNewAccessCode() { const code = document.getElementById('new_code_val').value.trim(); const rank = document.getElementById('new_code_rank').value; await fetch(`${SB_URL}/account_codes`, { method: 'POST', headers, body: JSON.stringify({ code, rank, created_by: currentUserName, is_used: false }) }); showContent('manage_codes'); }
-    </script>
+   // --- نظام إدارة صلاحيات الكتابة (إضافة برمجية) ---
+
+// 1. تعريف مصفوفة الصلاحيات (يتم تخزينها محلياً لسهولة التحكم)
+let globalWritePermissions = JSON.parse(localStorage.getItem('write_permissions')) || {
+    ops: "ALL",
+    wanted: "ALL",
+    intel: "ALL",
+    reports: "ALL",
+    signals: "ALL",
+    alerts: "ALL"
+};
+
+// 2. دالة التحقق: هل الرتبة الحالية مسموح لها بالكتابة في هذا القسم؟
+function canUserWrite(category) {
+    const allowed = globalWritePermissions[category];
+    if (!allowed || allowed === "ALL") return true;
+    const allowedArray = allowed.split(',');
+    return allowedArray.includes(currentUserRank);
+}
+
+// 3. دالة تحديث الصلاحيات من لوحة التحكم
+window.updateWritePermission = function(category, rank, isChecked) {
+    let allowed = globalWritePermissions[category] === "ALL" ? "" : globalWritePermissions[category];
+    let allowedArray = allowed ? allowed.split(',') : [];
+
+    if (isChecked) {
+        if (!allowedArray.includes(rank)) allowedArray.push(rank);
+    } else {
+        allowedArray = allowedArray.filter(r => r !== rank);
+    }
+
+    globalWritePermissions[category] = allowedArray.length === 0 ? "ALL" : allowedArray.join(',');
+    localStorage.setItem('write_permissions', JSON.stringify(globalWritePermissions));
+};
+
+// 4. إعادة تعريف وظيفة "التحكم بالرتب" لتشمل الجدول الجديد دون حذف القديم
+const originalRenderRankManager = renderRankManager;
+renderRankManager = async function(c) {
+    // استدعاء الوظيفة الأصلية أولاً لعرض جدول الموظفين
+    await originalRenderRankManager(c);
+    
+    // إضافة جدول الصلاحيات الجديد أسفل الجدول الأصلي
+    let h = `<br><hr style="border:1px solid #200; margin: 20px 0;">`;
+    h += `<h3 style="color:var(--warn-gold);">🛡️ إعدادات صلاحيات الكتابة والإضافة</h3>`;
+    h += `<p style="font-size:11px; color:#888; margin-bottom:15px;">حدد الرتب المسموح لها "بإضافة بيانات جديدة" في كل قائمة. (عدم تحديد أي رتبة يعني السماح للجميع).</p>`;
+    
+    const categories = {
+        ops: "القضايا النشطة",
+        wanted: "قائمة المطلوبين",
+        intel: "المصادر الاستخباراتية",
+        reports: "الأرشيف والتقارير",
+        signals: "الاتصالات والترددات",
+        alerts: "مركز التنبيهات"
+    };
+
+    h += `<div style="overflow-x:auto;"><table><tr><th>القائمة / القسم</th><th>الرتب المخولة بالإضاقة</th></tr>`;
+    
+    for (let key in categories) {
+        let currentAllowed = globalWritePermissions[key].split(',');
+        h += `<tr>
+            <td style="color:var(--red); font-weight:bold;">${categories[key]}</td>
+            <td>
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); text-align:right; font-size:10px; gap:8px;">
+                    ${Object.keys(RANK_DISPLAY_NAMES).map(r => `
+                        <label style="cursor:pointer;"><input type="checkbox" onchange="updateWritePermission('${key}', '${r}', this.checked)" 
+                        ${currentAllowed.includes(r) ? 'checked' : ''}> ${RANK_DISPLAY_NAMES[r]}</label>
+                    `).join('')}
+                </div>
+            </td>
+        </tr>`;
+    }
+    h += `</table></div><div style="text-align:center; margin-top:15px;"><button class="action-btn" style="width:200px;" onclick="showContent('rank_manager')">تحديث وحفظ التغييرات</button></div>`;
+    
+    c.insertAdjacentHTML('beforeend', h);
+};
+
+// 5. نظام "القفل التلقائي" لنماذج الإضافة بناءً على الصلاحيات
+const categoriesToProtect = [
+    { name: 'ops', selector: 'div[style*="background: rgba(20,0,0,0.3)"]' },
+    { name: 'wanted', selector: 'div[style*="background: rgba(20,0,0,0.3)"]' },
+    { name: 'intel', selector: 'div[style*="background: rgba(20,0,0,0.3)"]' },
+    { name: 'signals', selector: 'div[style*="background: rgba(0,20,0,0.1)"]' },
+    { name: 'reports', selector: 'div[style*="background: rgba(20,0,0,0.3)"]' },
+    { name: 'alerts', selector: 'input#al1' }
+];
+
+// مراقب التغييرات في واجهة العرض لإخفاء أدوات الكتابة لمن لا يملك صلاحية
+const observer = new MutationObserver(() => {
+    categoriesToProtect.forEach(cat => {
+        if (!canUserWrite(cat.name)) {
+            const element = document.querySelector(cat.selector);
+            if (element) {
+                // إذا كانت القائمة هي التنبيهات، نتعامل مع الزر والإدخال بشكل خاص
+                if (cat.name === 'alerts') {
+                    const btn = document.querySelector('.action-btn[onclick="addAlert()"]');
+                    if (element) element.style.display = 'none';
+                    if (btn) btn.style.display = 'none';
+                } else {
+                    element.innerHTML = `<div style="padding:15px; border:1px dashed #400; color:#555; font-size:12px; text-align:center;">⚠️ رتبتك الحالية (${RANK_DISPLAY_NAMES[currentUserRank] || currentUserRank}) لا تملك صلاحية الإضافة في هذا القسم.</div>`;
+                    element.style.pointerEvents = 'none';
+                    element.style.opacity = '0.7';
+                }
+            }
+        }
+    });
+});
+
+observer.observe(document.getElementById('content-body'), { childList: true, subtree: true });
+
+// --- نهاية الإضافة الجديدة ---
+
+ </script>
 </body>
 </html>

@@ -267,6 +267,26 @@
         .stat-item { display: flex; flex-direction: column; align-items: center; min-width: 45px; }
         .stat-label { font-size: 8px; color: #666; text-transform: uppercase; margin-top: 2px; }
 
+        /* Map + Draw Tools (Paint 3D style) */
+        .map-paint3d-wrap { display: flex; gap: 0; background: #0d0d0d; border: 1px solid var(--red); border-radius: 8px; overflow: hidden; max-width: 100%; }
+        .map-paint3d-canvas-area { flex: 1; min-width: 0; }
+        .map-paint3d-toolbar { display: flex; gap: 4px; padding: 8px 12px; background: #1a1a1a; border-bottom: 1px solid #333; }
+        .map-paint3d-tool { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: #252525; border: 1px solid #333; border-radius: 6px; cursor: pointer; font-size: 18px; transition: all 0.2s; }
+        .map-paint3d-tool:hover { background: #333; border-color: #444; }
+        .map-paint3d-tool.active { background: rgba(255,0,0,0.2); border-color: var(--red); color: var(--red); box-shadow: inset 0 0 0 1px var(--red); }
+        .map-paint3d-sidebar { width: 180px; padding: 15px; background: #141414; border-left: 1px solid #333; display: flex; flex-direction: column; gap: 15px; }
+        .map-paint3d-sidebar.hidden { display: none; }
+        .map-paint3d-opt-label { font-size: 10px; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+        .map-rgb-box { width: 100%; height: 40px; border: 2px solid #333; border-radius: 6px; cursor: pointer; background: #ff0000; position: relative; }
+        .map-rgb-box input[type="color"] { position: absolute; opacity: 0; width: 100%; height: 100%; top: 0; left: 0; cursor: pointer; }
+        .map-size-slider { width: 100%; height: 6px; -webkit-appearance: none; appearance: none; background: #222; border-radius: 3px; }
+        .map-size-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; background: var(--red); border-radius: 50%; cursor: pointer; }
+        .map-scroll-container::-webkit-scrollbar { width: 10px; height: 10px; }
+        .map-scroll-container::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        .map-marker-circle { position: absolute; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 8px rgba(0,0,0,0.5); pointer-events: none; }
+        .map-container { width: 100%; height: 500px; border: 1px solid #333; border-radius: 4px; overflow: hidden; }
+        .map-container iframe { width: 100%; height: 100%; border: 0; }
+
     </style>
 </head>
 <body>
@@ -523,7 +543,16 @@
         }
         setInterval(syncEmergencyAlerts, 10000); 
 
-        function closeDisplay() { document.getElementById('display-area').style.display = "none"; document.getElementById('emergency-banner').style.display = "none"; editingReportId = null; editingOpId = null; editingWantedId = null; editingIntelId = null; editingSignalId = null; }
+        function saveData(key, id, type) {
+            const v = document.getElementById(id).value; if(!v) return;
+            let db = JSON.parse(localStorage.getItem(key) || '[]');
+            db.unshift({text: v, date: new Date().toLocaleString('ar-EG')});
+            localStorage.setItem(key, JSON.stringify(db)); showContent(type);
+        }
+        function renderMap(container) {
+            container.innerHTML = `<div class="map-container"><iframe src="https://compromit.github.io/gta5-map/"></iframe></div>`;
+        }
+        function closeDisplay() { document.getElementById('display-area').style.display = "none"; }
 
         // وظيفة التحقق من ملكية المحتوى (المرسل فقط)
         function checkOwnership(authorString) {
@@ -562,7 +591,7 @@
             else if(type === 'manage_codes') await renderCodeManager(body);
             else if(type === 'stats') await renderStats(body);
             else if(type === 'rank_manager') await renderRankManager(body);
-            else if(type === 'map') body.innerHTML = `<iframe src="https://gta-5-map.com/" style="width: 100%; height: 500px; border: 1px solid #300;"></iframe>`;
+            else if(type === 'map') renderMap(body);
             else if(type === 'signals') await renderSignals(body);
             if(type !== 'map' && type !== 'stats' && type !== 'rank_manager') body.insertAdjacentHTML('afterbegin', filterHTML);
         }

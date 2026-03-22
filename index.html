@@ -288,7 +288,7 @@
         .map-container iframe { width: 100%; height: 100%; border: 0; }
         
         /* علامة الموقع (Marker) */
-        .map-marker { position: absolute; width: 12px; height: 12px; background: var(--red); border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px var(--red); transform: translate(-50%, -50%); pointer-events: auto; cursor: crosshair; }
+        .map-marker { position: absolute; width: 12px; height: 12px; background: var(--red); border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px var(--red); transform: translate(-50%, -50%); pointer-events: auto; cursor: crosshair; z-index: 1000; }
         .map-marker::after { content: attr(data-label); position: absolute; top: 15px; left: 50%; transform: translateX(-50%); background: black; color: white; font-size: 8px; padding: 2px 5px; white-space: nowrap; border: 1px solid var(--red); }
 
     </style>
@@ -582,6 +582,20 @@
             });
 
             syncMapMarkers(); // جلب العلامات فوراً عند الفتح
+            initMapPolling(); // تفعيل المزامنة اللحظية (عبر الـ Polling)
+        }
+
+        // دالة جديدة للمزامنة اللحظية للخريطة (تحديث كل 5 ثواني في الخلفية عند فتح الخريطة)
+        function initMapPolling() {
+            if (window.mapSyncInterval) clearInterval(window.mapSyncInterval);
+            window.mapSyncInterval = setInterval(() => {
+                const layer = document.getElementById('map-markers-layer');
+                if (layer && window.getComputedStyle(document.getElementById('display-area')).display !== "none") {
+                    syncMapMarkers();
+                } else {
+                    clearInterval(window.mapSyncInterval);
+                }
+            }, 5000);
         }
 
         async function saveMapMarker(x, y, label) {
@@ -595,6 +609,17 @@
             
             // نستخدم جدول operations لتخزين العلامات لعدم إنشاء جدول جديد
             await fetch(`${SB_URL}/operations`, { method: 'POST', headers, body: JSON.stringify(markerData) });
+            
+            // إضافة تنبيه لحظي ليحدث الجميع خرائطهم
+            await fetch(`${SB_URL}/alerts`, { 
+                method: 'POST', 
+                headers, 
+                body: JSON.stringify({ 
+                    text: `📍 تحديث جديد على الخريطة: ${label} (By: ${currentUserName})`, 
+                    date_str: new Date().toLocaleString('ar-EG') 
+                }) 
+            });
+
             syncMapMarkers();
         }
 

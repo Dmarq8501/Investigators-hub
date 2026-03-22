@@ -255,6 +255,7 @@
         }
         .stamp-red { color: #f00; border-color: #f00; }
         .stamp-green { color: #0f0; border-color: #0f0; }
+        .stamp-yellow { color: #ff0; border-color: #ff0; }
 
         /* تصميم كرت الإحصائيات */
         .stat-card {
@@ -688,13 +689,20 @@
                 if(canUserSeeItem(d.allowed_ranks)) {
                     const authorPart = d.details ? d.details.split(" (By:")[1]?.replace(")", "") : "SYSTEM";
                     const hasPerm = checkOwnership(authorPart);
+                    
+                    // منطق تحديد لون الختم
+                    let stampClass = 'stamp-red'; // افتراضي
+                    if (d.status === 'نشطة') stampClass = 'stamp-green';
+                    else if (d.status === 'مغلقة') stampClass = 'stamp-red';
+                    else if (d.status === 'قيد التحقيق') stampClass = 'stamp-yellow';
+
                     h += `<div class="file-folder" onclick="toggleFolder(this)">
                         <div class="file-tab">CASE #${d.id}</div>
                         <b style="color:var(--red); display:block;">${d.name}</b>
                         <div class="folder-details">
                             <div style="font-size:11px; margin-bottom:10px;"><b>الموقع:</b> ${d.place} | <b>الحالة:</b> ${d.status}</div>
                             <div style="font-size:11px; color:#999; border-top:1px solid #333; padding-top:10px;">${d.details.split(" (By:")[0]}</div>
-                            <div class="stamp ${d.status === 'نشطة' ? 'stamp-red' : 'stamp-green'}">${d.status}</div>
+                            <div class="stamp ${stampClass}">${d.status}</div>
                             <div style="margin-top:15px; font-size:9px; color:#555;">المحقق المسؤول: ${authorPart}</div>
                             <div style="margin-top:10px;" onclick="event.stopPropagation()">
                                 ${hasPerm ? `<button class="del-btn" onclick="deleteItem('operations',${d.id}, '${authorPart}')">حذف</button>` : ''}

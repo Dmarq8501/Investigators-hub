@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+‏<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -11,6 +12,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DETECTIVE HUB |  CASE EDITION - UNLOCKED</title>
     <style>
+#report-content {
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background: #fff;
+    color: #000;
+}
+
+.pdf-header h2 {
+    text-align: center;
+    margin-bottom: 5px;
+}
+
+.pdf-header p {
+    text-align: center;
+    margin-top: 0;
+    font-size: 14px;
+}
+
+.pdf-info p {
+    margin: 3px 0;
+}
+
+.signature {
+    margin-top: 50px;
+}
+
+.signature .line {
+    width: 200px;
+    border-bottom: 1px solid #000;
+    margin-top: 10px;
+}
         /* [نفس التنسيقات الأصلية بدون تغيير] */
         :root { --red: #ff0000; --bg: #050505; --panel: rgba(10, 0, 0, 0.95); --glow: 0 0 15px rgba(255, 0, 0, 0.3); --folder-bg: #1a1a1a; --id-bg: #222; --warn-gold: #ffcc00; }
         
@@ -335,6 +367,10 @@
         <div id="news-ticker"><div id="ticker-content">CONNECTING TO SECURE SERVER... UPLOADING ENCRYPTION KEYS... STANDBY...</div></div>
 
         <div id="nav-grid" class="grid-container">
+<div class="category-box" onclick="showContent('gangs')">
+    <span class="icon">🕶️</span>
+    <h3>العصابات</h3>
+</div>
             <div class="category-box" onclick="showContent('ops')"><span class="icon">💼</span><h3>القضايا النشطة</h3></div>
             <div class="category-box" onclick="showContent('wanted')"><span class="icon">🚨</span><h3>المطلوبين</h3></div>
             <div class="category-box" onclick="showContent('agents')"><span class="icon">🔍</span><h3>المحققين</h3></div>
@@ -350,13 +386,45 @@
             <div id="codes-btn" class="category-box" onclick="showContent('manage_codes')" style="display:none;"><span class="icon">🔑</span><h3>توليد مفاتيح الوصول</h3></div>
             
             <div class="category-box" onclick="showContent('alerts')"><span class="icon">⚠️</span><h3>التنبيهات</h3></div>
+            
+            <div id="status-manager-btn" class="category-box" onclick="showContent('status_manager')" style="border: 1px solid #00ff00;"><span class="icon">👤</span><h3>حالة المحقق</h3></div>
         </div>
 
-        <div id="display-area">
-            <span class="close-btn" onclick="closeDisplay()">TERMINATE VIEW [ESC]</span>
-            <div id="content-body"></div>
+<!-- وضعه داخل display-area -->
+<div id="display-area">
+    <span class="close-btn" onclick="closeDisplay()">TERMINATE VIEW [ESC]</span>
+    
+    <!-- إضافة جديدة: تغليف التقرير -->
+    <div id="report-content">
+        <!-- الهيدر الرسمي -->
+        <div class="pdf-header">
+            <h2>DETECTIVE DEPARTMENT</h2>
+            <p>Official Investigation Report</p>
         </div>
+
+        <!-- بيانات القضية -->
+        <div class="pdf-info">
+            <p><strong>رقم القضية:</strong> <span id="case-id"></span></p>
+            <p><strong>اسم المحقق:</strong> <span id="officer-name"></span></p>
+            <p><strong>الرتبة:</strong> <span id="officer-rank"></span></p>
+            <p><strong>التاريخ:</strong> <span id="report-date"></span></p>
+        </div>
+
+        <hr>
+
+        <!-- محتوى التقرير الحالي -->
+        <div id="content-body"></div>
+
+        <!-- توقيع المحقق -->
+        <div class="signature">
+            <p>توقيع المحقق:</p>
+            <div class="line"></div>
+        </div>
+
+        <!-- زر تحميل PDF -->
+        <button onclick="downloadPDF()">📄 تحميل PDF</button>
     </div>
+</div>
 
     <script>
         // --- إضافة تأثير صوت الـ Beep عند الضغط على أي زر ---
@@ -471,7 +539,9 @@
                     signup_code: verifiedCodeData ? verifiedCodeData.code : 'STATIC_BYPASS', 
                     is_suspended: false, 
                     suspension_reason: "",
-                    points: 0 // تهيئة النقاط عند التسجيل
+                    points: 0, // تهيئة النقاط عند التسجيل
+                    status: "online", // الحالة الافتراضية
+                    mission_name: ""
                 };
                 
                 await fetch(`${SB_URL}/users`, { method: 'POST', headers, body: JSON.stringify(userObj) });
@@ -527,8 +597,32 @@
             document.getElementById('rank-manager-btn').style.display = isManager ? 'block' : 'none';
             document.getElementById('points-btn').style.display = isManager ? 'block' : 'none';
 
-            fetch(`${SB_URL}/logs`, { method: 'POST', headers, body: JSON.stringify({ user_name: `${RANK_DISPLAY_NAMES[currentUserRank] || currentUserRank} | ${currentUserName}`, entry_time: new Date().toLocaleString('ar-EG') }) });
+            // تطبيق قيود الحالة (Offline)
+            applyStatusUIRestrictions(user.status);
+
+            fetch(`${SB_URL}/logs`, { method: 'POST', headers, body: JSON.stringify({ user_name: `${RANK_DISPLAY_NAMES[currentUserRank] || currentUserRank} | ${currentUserName}`, entry_time: new Date().toLocaleString('ar-EG'), status: user.status || 'online' }) });
             syncEmergencyAlerts();
+        }
+
+        function applyStatusUIRestrictions(status) {
+            const navGrid = document.getElementById('nav-grid');
+            const boxes = navGrid.querySelectorAll('.category-box');
+            const statusBtn = document.getElementById('status-manager-btn');
+
+            if (status === 'offline') {
+                boxes.forEach(box => box.style.display = 'none');
+                statusBtn.style.display = 'block';
+            } else {
+                // إعادة القوائم بناءً على الرتبة
+                boxes.forEach(box => {
+                    const id = box.id;
+                    if (['logs-btn', 'codes-btn', 'stats-btn', 'rank-manager-btn', 'points-btn'].includes(id)) {
+                        box.style.display = isAdmin ? 'block' : 'none';
+                    } else {
+                        box.style.display = 'block';
+                    }
+                });
+            }
         }
 
         function logout() { localStorage.removeItem('ia_session'); location.reload(); }
@@ -732,8 +826,10 @@ async function deleteSingleDrawing(drawingId) {
             else if(type === 'stats') await renderStats(body);
             else if(type === 'rank_manager') await renderRankManager(body);
             else if(type === 'points_manager') await renderPointsManager(body);
+            else if(type === 'status_manager') await renderStatusManager(body); // الوظيفة الجديدة
             else if(type === 'map') renderMap(body);
             else if(type === 'signals') await renderSignals(body);
+           else if(type === 'gangs') await renderGangs(body);
             if(type !== 'map' && type !== 'stats' && type !== 'rank_manager' && type !== 'points_manager') body.insertAdjacentHTML('afterbegin', filterHTML);
         }
 
@@ -1055,20 +1151,35 @@ async function deleteSingleDrawing(drawingId) {
         }
 
         async function renderAgents(c) {
-            const [agentsRes, usersRes] = await Promise.all([ fetch(`${SB_URL}/agents?select=*&order=id.desc`, { headers }), fetch(`${SB_URL}/users?select=username,is_suspended,points`, { headers }) ]);
+            const [agentsRes, usersRes] = await Promise.all([ fetch(`${SB_URL}/agents?select=*&order=id.desc`, { headers }), fetch(`${SB_URL}/users?select=username,is_suspended,points,status,mission_name,rank&order=username.asc`, { headers }) ]);
             const agents = await agentsRes.json(); const users = await usersRes.json();
             let h = `<h3>🔍 سجل الهوية المهنية للمحققين</h3><div class="universal-grid">`;
             agents.forEach(a => {
                 const user = users.find(u => u.username === a.name); 
                 const suspended = user ? user.is_suspended : false;
                 const points = user ? user.points : 0;
+                const status = user ? (user.status || 'online') : 'online';
+                const missionName = user ? (user.mission_name || 'لا يوجد') : 'لا يوجد';
+                
+                let statusColor = "#0f0";
+                let statusText = "متصل";
+                if(status === 'offline') { statusColor = "#888"; statusText = "غير متصل"; }
+                else if(status === 'on_mission') { statusColor = "#f00"; statusText = "في مهمة"; }
+
+                const isAdminViewer = (currentUserRank === "DIRECTOR" || currentUserRank === "DEPUTY");
+
                 h += `<div class="agent-id-card ${a.rank?.includes("BURNED") ? 'burned-agent' : ''}">
                     <img src="${a.img_url || 'https://via.placeholder.com/80x100?text=ID'}" class="agent-photo" onerror="this.src='https://via.placeholder.com/80x100?text=ID'">
                     <div class="agent-info-text">
                         <div class="agent-rank-badge">${RANK_DISPLAY_NAMES[a.rank] || a.rank}</div>
                         <div style="font-size:14px; font-weight:bold; color:#fff;">${a.name} <span style="color:var(--red); font-size:10px;">[${points} PTS]</span></div>
                         <div style="font-size:10px; color:#888;">Badge: ${a.code}</div>
-                        <div style="font-size:9px; color:${suspended ? 'red' : '#0f0'}; margin-top:5px;">● ${suspended ? 'SUSPENDED' : 'ACTIVE DUTY'}</div>
+                        <div style="font-size:10px; color:${statusColor}; margin-top:5px; display:flex; align-items:center; gap:5px;">
+                            <span style="width:8px; height:8px; background:${statusColor}; border-radius:50%; display:inline-block;"></span>
+                            ${statusText} 
+                            ${(status === 'on_mission' && isAdminViewer) ? `<span style="color:#aaa; font-size:9px;">(${missionName})</span>` : ''}
+                        </div>
+                        <div style="font-size:9px; color:${suspended ? 'red' : '#444'}; margin-top:5px;">● ${suspended ? 'SUSPENDED' : 'SYSTEM OK'}</div>
                         <div style="margin-top:10px; display:flex; gap:3px;">
                             ${isAdmin ? `<button class="del-btn" style="padding:2px 5px;" onclick="deleteAgentAndUser('${a.name}', ${a.id})">X</button>` : ''}
                             ${isAdmin ? (suspended ? `<button class="unsuspend-btn" style="padding:2px 5px;" onclick="unsuspendAgent('${a.name}')">ON</button>` : `<button class="suspend-btn" style="padding:2px 5px;" onclick="suspendAgent('${a.name}')">OFF</button>`) : ''}
@@ -1169,7 +1280,16 @@ async function deleteSingleDrawing(drawingId) {
             c.innerHTML = h;
         }
 
-        async function renderLogs(c) { const res = await fetch(`${SB_URL}/logs?select=*&order=id.desc`, { headers }); const data = await res.json(); let h = `<h3>📊 سجل النشاط النظامي</h3>`; data.forEach(l => h += `<div style="font-size:11px; border-bottom:1px solid #111; padding:8px;">[${l.entry_time}] :: ACCESS :: ${l.user_name}</div>`); c.innerHTML = h; }
+        async function renderLogs(c) { 
+            const res = await fetch(`${SB_URL}/logs?select=*&order=id.desc`, { headers }); 
+            const data = await res.json(); 
+            let h = `<h3>📊 سجل النشاط النظامي</h3>`; 
+            data.forEach(l => {
+                let sTag = l.status === 'offline' ? '⚪' : (l.status === 'on_mission' ? '🔴' : '🟢');
+                h += `<div style="font-size:11px; border-bottom:1px solid #111; padding:8px;">[${l.entry_time}] :: ${sTag} :: ${l.user_name}</div>`;
+            }); 
+            c.innerHTML = h; 
+        }
 
         async function renderCodeManager(c) {
             const res = await fetch(`${SB_URL}/account_codes?select=*&order=id.desc`, { headers }); const data = await res.json();
@@ -1184,6 +1304,78 @@ async function deleteSingleDrawing(drawingId) {
         async function deleteGlobalCharge(id) { if(!isAdmin) return; if(confirm("حذف هذه التهمة؟")) { await fetch(`${SB_URL}/charges?id=eq.${id}`, { method: 'DELETE', headers }); showContent('reports'); } }
         async function addAlert() { const identity = `${RANK_DISPLAY_NAMES[currentUserRank] || currentUserRank} | ${currentUserName}`; await fetch(`${SB_URL}/alerts`, { method: 'POST', headers, body: JSON.stringify({ text: `${document.getElementById('al1').value} (By: ${identity})`, date_str: new Date().toLocaleString('ar-EG') }) }); showContent('alerts'); }
         async function generateNewAccessCode() { const code = document.getElementById('new_code_val').value.trim(); const rank = document.getElementById('new_code_rank').value; await fetch(`${SB_URL}/account_codes`, { method: 'POST', headers, body: JSON.stringify({ code, rank, created_by: currentUserName, is_used: false }) }); showContent('manage_codes'); }
+
+        // --- وظائف نظام حالة المحقق الجديدة ---
+        async function renderStatusManager(c) {
+            const saved = JSON.parse(localStorage.getItem('ia_session'));
+            const currentStatus = saved.status || "online";
+            const currentMission = saved.mission_name || "";
+
+            let h = `<h3>👤 إدارة حالة المحقق</h3>
+            <div style="background:rgba(20,0,0,0.2); padding:30px; border:1px solid #333; text-align:center;">
+                <label style="display:block; margin-bottom:15px; color:var(--red); font-size:12px;">اختر حالتك الحالية المباشرة:</label>
+                <select id="agent-status-select" onchange="toggleMissionInput(this.value)" style="font-size:18px; padding:15px; margin-bottom:20px;">
+                    <option value="online" ${currentStatus === 'online' ? 'selected' : ''}>🟢 متصل (Online)</option>
+                    <option value="offline" ${currentStatus === 'offline' ? 'selected' : ''}>⚪ غير متصل (Offline)</option>
+                    <option value="on_mission" ${currentStatus === 'on_mission' ? 'selected' : ''}>🔴 في مهمة (On Mission)</option>
+                </select>
+                
+                <div id="mission-input-area" style="display:${currentStatus === 'on_mission' ? 'block' : 'none'}; margin-bottom:20px;">
+                    <input type="text" id="mission-name-val" placeholder="أدخل اسم المهمة (إجباري)" value="${currentMission}">
+                </div>
+
+                <button class="action-btn" onclick="updateAgentStatus()">حفظ وتحديث الحالة</button>
+            </div>`;
+            c.innerHTML = h;
+        }
+
+        function toggleMissionInput(val) {
+            document.getElementById('mission-input-area').style.display = (val === 'on_mission') ? 'block' : 'none';
+        }
+
+        async function updateAgentStatus() {
+            const status = document.getElementById('agent-status-select').value;
+            const mission = document.getElementById('mission-name-val').value.trim();
+
+            if (status === 'on_mission' && !mission) {
+                alert("يجب كتابة اسم المهمة عند اختيار حالة 'في مهمة'.");
+                return;
+            }
+
+            try {
+                const saved = JSON.parse(localStorage.getItem('ia_session'));
+                const updateData = { status: status, mission_name: (status === 'on_mission' ? mission : "") };
+                
+                // تحديث قاعدة البيانات
+                await fetch(`${SB_URL}/users?id=eq.${saved.id}`, { 
+                    method: 'PATCH', 
+                    headers, 
+                    body: JSON.stringify(updateData) 
+                });
+
+                // تحديث الجلسة المحلية
+                const newUser = { ...saved, ...updateData };
+                localStorage.setItem('ia_session', JSON.stringify(newUser));
+                
+                alert("تم تحديث الحالة بنجاح.");
+                
+                // إغلاق العرض وتطبيق القيود
+                closeDisplay();
+                applyStatusUIRestrictions(status);
+                
+                // تسجيل النشاط
+                fetch(`${SB_URL}/logs`, { method: 'POST', headers, body: JSON.stringify({ user_name: `${RANK_DISPLAY_NAMES[currentUserRank] || currentUserRank} | ${currentUserName}`, entry_time: new Date().toLocaleString('ar-EG'), status: status }) });
+
+            } catch (e) {
+                alert("خطأ أثناء تحديث الحالة.");
+            }
+        }
+
+        function closeDisplay() {
+            document.getElementById('display-area').style.display = 'none';
+        }
+
+        window.addEventListener('keydown', (e) => { if(e.key === "Escape") closeDisplay(); });
 
     </script>
 
@@ -1242,6 +1434,146 @@ async function deleteSingleDrawing(drawingId) {
                 }
             }, 400);
         })();
-    </script>
+// =======================
+// نظام العصابات
+// =======================
+
+async function renderGangs(container) {
+    container.innerHTML = `
+        <h3>🕶️ إدارة العصابات</h3>
+
+        <div style="background:#111; padding:15px; border:1px solid var(--red); margin-bottom:20px;">
+            <input id="gang-name" placeholder="اسم العصابة">
+            <input type="color" id="gang-color" value="#ff0000">
+            <button class="action-btn" onclick="addGang()">إضافة عصابة</button>
+        </div>
+
+        <div id="gangs-list"></div>
+    `;
+
+    loadGangs();
+}
+
+async function addGang() {
+    const name = document.getElementById('gang-name').value.trim();
+    const color = document.getElementById('gang-color').value;
+
+    if (!name) return alert("اكتب اسم العصابة");
+
+    await fetch(`${SB_URL}/gangs`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            name: name,
+            color: color
+        })
+    });
+
+    loadGangs();
+}
+
+async function loadGangs() {
+    const res = await fetch(`${SB_URL}/gangs?select=*`, { headers });
+    const data = await res.json();
+
+    const container = document.getElementById('gangs-list');
+    container.innerHTML = "";
+
+    data.forEach(g => {
+        container.innerHTML += `
+        <div style="border:2px solid ${g.color}; padding:15px; margin-bottom:15px;">
+            <h4 style="color:${g.color};">${g.name}</h4>
+
+            <input id="member-name-${g.id}" placeholder="اسم العضو">
+            <input id="member-role-${g.id}" placeholder="الرتبة (رئيس - نائب - عضو)">
+            <input id="member-location-${g.id}" placeholder="الموقع">
+
+            <button class="edit-report-btn" onclick="addMember(${g.id})">إضافة عضو</button>
+
+            <div id="members-${g.id}" style="margin-top:10px;"></div>
+
+            <button class="del-btn" onclick="deleteGang(${g.id})">حذف العصابة</button>
+        </div>
+        `;
+
+        loadMembers(g.id);
+    });
+}
+
+async function addMember(gangId) {
+    const name = document.getElementById(`member-name-${gangId}`).value;
+    const role = document.getElementById(`member-role-${gangId}`).value;
+    const location = document.getElementById(`member-location-${gangId}`).value;
+
+    if (!name) return;
+
+    await fetch(`${SB_URL}/gang_members`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            gang_id: gangId,
+            name: name,
+            role: role,
+            location: location
+        })
+    });
+
+    loadMembers(gangId);
+}
+
+async function loadMembers(gangId) {
+    const res = await fetch(`${SB_URL}/gang_members?gang_id=eq.${gangId}`, { headers });
+    const data = await res.json();
+
+    const container = document.getElementById(`members-${gangId}`);
+    container.innerHTML = "";
+
+    data.forEach(m => {
+        container.innerHTML += `
+        <div style="background:#000; padding:8px; margin-bottom:5px; border:1px solid #333;">
+            👤 ${m.name} | ${m.role} | 📍 ${m.location}
+            <button class="del-btn" onclick="deleteMember(${m.id}, ${gangId})">حذف</button>
+        </div>
+        `;
+    });
+}
+
+async function deleteGang(id) {
+    if (!confirm("حذف العصابة؟")) return;
+
+    await fetch(`${SB_URL}/gangs?id=eq.${id}`, {
+        method: 'DELETE',
+        headers
+    });
+
+    loadGangs();
+}
+
+async function deleteMember(id, gangId) {
+    await fetch(`${SB_URL}/gang_members?id=eq.${id}`, {
+        method: 'DELETE',
+        headers
+    });
+
+    loadMembers(gangId);
+}
+  // دوال تعبئة البيانات وإنشاء PDF
+function generateReportMeta() {
+    document.getElementById('case-id').innerText = "12345"; // استبدل بالبيانات الحقيقية
+    document.getElementById('officer-name').innerText = currentUserName;
+    document.getElementById('officer-rank').innerText = currentUserRank;
+    document.getElementById('report-date').innerText = new Date().toLocaleDateString();
+}
+
+function downloadPDF() {
+    generateReportMeta(); // يملأ البيانات قبل الطباعة
+    const printContents = document.getElementById('report-content').innerHTML;
+    const originalContents = document.body.innerHTML;
+    document.body.innerHTML = printContents;
+    window.print();
+    document.body.innerHTML = originalContents;
+    location.reload(); // لإعادة تفعيل جميع وظائف الموقع
+}
+  </script>
 </body>
 </html>

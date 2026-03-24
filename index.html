@@ -1229,9 +1229,14 @@ async function deleteSingleDrawing(drawingId) {
                   ${hasPerm ? `<button class="del-btn" onclick="deleteItem('reports',${r.id}, '${authorPart}')">حذف</button>` : ''}
                   ${hasPerm ? `<button class="edit-report-btn" onclick='prepareEditReport(${JSON.stringify(r)})'>تعديل</button>` : ''}
                   <button class="pdf-btn" style="font-size:10px; padding:2px 6px;" 
-                          onclick="downloadReportAsPDF(${r.id}, encodeURIComponent(r.content), encodeURIComponent(authorPart), encodeURIComponent(r.date_str))">
-                    📄 PDF
-                  </button>
+                          <button class="pdf-btn" style="font-size:10px; padding:2px 6px;" 
+        <button class="pdf-btn" style="font-size:10px; padding:2px 6px;" 
+        onclick="downloadReportAsPDF(${r.id}, encodeURIComponent(r.content), encodeURIComponent(authorPart), encodeURIComponent(r.date_str))">
+  📄 PDF
+</button>
+
+
+                
                 </div>
               </div>
             </div>`;

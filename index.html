@@ -12,6 +12,7 @@
     <title>DETECTIVE HUB |  CASE EDITION - UNLOCKED</title>
     <style>
 
+
         /* [نفس التنسيقات الأصلية بدون تغيير] */
         :root { --red: #ff0000; --bg: #050505; --panel: rgba(10, 0, 0, 0.95); --glow: 0 0 15px rgba(255, 0, 0, 0.3); --folder-bg: #1a1a1a; --id-bg: #222; --warn-gold: #ffcc00; }
         
@@ -1173,23 +1174,65 @@ async function deleteSingleDrawing(drawingId) {
         }
 
         async function renderReports(c) {
-            const [repRes, chargeRes] = await Promise.all([ fetch(`${SB_URL}/reports?select=*&order=id.desc`, { headers }), fetch(`${SB_URL}/charges?select=*&order=id.desc`, { headers }) ]);
-            const reports = await repRes.json(); const charges = await chargeRes.json();
-            let h = `<h3>📄 أرشيف القضايا المكتملة</h3>`;
-            h += `<div style="background: rgba(20,0,0,0.3); padding: 20px; border: 1px solid #300; margin-bottom: 20px;"><input id="r_num" placeholder="رقم الملف المستندي"><input id="r_crim_id" placeholder="اسم المشتبه به"><input id="r_img" placeholder="مرفق مرئي (URL)"><div class="charges-dynamic-list">${charges.map(ch => `<div class="charge-check-item"><input type="checkbox" value="${ch.name}" class="charge-cb"><span>${ch.name}</span>${isAdmin ? `<span class="del-charge-btn" onclick="deleteGlobalCharge(${ch.id})">[حذف]</span>`:''}</div>`).join('')}</div><div style="display:flex; gap:5px; margin-bottom:15px;"><input id="new_charge_val" placeholder="إضافة تهمة جديدة..."><button onclick="addNewGlobalCharge()">إضافة</button></div><input id="r_time" placeholder="العقوبة"><textarea id="r_extra" placeholder="التفاصيل..."></textarea>` + generateRankSelectorHTML('rep-rank-cb') + `<button class="action-btn" onclick="addRep()">${editingReportId ? 'تحديث التقرير' : 'حفظ التقرير'}</button></div>`;
-            h += `<div class="universal-grid">`;
-            reports.forEach(r => {
-                if(canUserSeeItem(r.allowed_ranks)) {
-                    const authorPart = r.author || "SYSTEM";
-                    const hasPerm = checkOwnership(authorPart);
-                    h += `<div class="file-folder" style="padding-left:110px;" onclick="toggleFolder(this)"><div class="file-tab">FILE RE-${r.report_num}</div><img src="${r.img_url}" style="position:absolute; left:15px; top:40px; width:80px; height:100px; border:1px solid #555; background:#000;" onerror="this.src='https://via.placeholder.com/80x100'"><b style="color:#fff; font-size:15px; display:block;">FILE ID: ${r.report_num}</b><div class="folder-details"><b style="color:var(--red); font-size:14px;">المتهم: ${r.author_id}</b><div style="font-size:10px; color:var(--red); margin:5px 0;">التهم: ${r.status || 'None'}</div><div style="font-size:10px; color:#0f0; margin-bottom:5px;">العقوبة: ${r.place || 'لا يوجد'}</div><div style="font-size:11px; color:#999; margin-bottom:10px;">${r.content}</div><div class="stamp stamp-green" style="bottom:40px;">CLOSED</div><div style="font-size:9px; color:#555;">By: ${r.author}</div><div style="margin-top:10px;" onclick="event.stopPropagation()">
+    const [repRes, chargeRes] = await Promise.all([
+        fetch(`${SB_URL}/reports?select=*&order=id.desc`, { headers }),
+        fetch(`${SB_URL}/charges?select=*&order=id.desc`, { headers })
+    ]);
+    const reports = await repRes.json();
+    const charges = await chargeRes.json();
+
+    let h = `<h3>📄 أرشيف القضايا المكتملة</h3>`;
+    h += `<div style="background: rgba(20,0,0,0.3); padding: 20px; border: 1px solid #300; margin-bottom: 20px;">
+        <input id="r_num" placeholder="رقم الملف المستندي">
+        <input id="r_crim_id" placeholder="اسم المشتبه به">
+        <input id="r_img" placeholder="مرفق مرئي (URL)">
+        <div class="charges-dynamic-list">
+            ${charges.map(ch => `
+                <div class="charge-check-item">
+                    <input type="checkbox" value="${ch.name}" class="charge-cb">
+                    <span>${ch.name}</span>
+                    ${isAdmin ? `<span class="del-charge-btn" onclick="deleteGlobalCharge(${ch.id})">[حذف]</span>`:''}
+                </div>`).join('')}
+        </div>
+        <div style="display:flex; gap:5px; margin-bottom:15px;">
+            <input id="new_charge_val" placeholder="إضافة تهمة جديدة...">
+            <button onclick="addNewGlobalCharge()">إضافة</button>
+        </div>
+        <input id="r_time" placeholder="العقوبة">
+        <textarea id="r_extra" placeholder="التفاصيل..."></textarea>
+        ${generateRankSelectorHTML('rep-rank-cb')}
+        <button class="action-btn" onclick="addRep()">${editingReportId ? 'تحديث التقرير' : 'حفظ التقرير'}</button>
+    </div>`;
+
+    h += `<div class="universal-grid">`;
+    reports.forEach(r => {
+        if (canUserSeeItem(r.allowed_ranks)) {
+            const authorPart = r.author || "SYSTEM";
+            const hasPerm = checkOwnership(authorPart);
+            h += `
+            <div class="file-folder" style="padding-left:110px;" onclick="toggleFolder(this)">
+                <div class="file-tab">FILE RE-${r.report_num}</div>
+                <img src="${r.img_url}" style="position:absolute; left:15px; top:40px; width:80px; height:100px; border:1px solid #555; background:#000;" onerror="this.src='https://via.placeholder.com/80x100'">
+                <b style="color:#fff; font-size:15px; display:block;">FILE ID: ${r.report_num}</b>
+                <div class="folder-details">
+                    <b style="color:var(--red); font-size:14px;">المتهم: ${r.author_id}</b>
+                    <div style="font-size:10px; color:var(--red); margin:5px 0;">التهم: ${r.status || 'None'}</div>
+                    <div style="font-size:10px; color:#0f0; margin-bottom:5px;">العقوبة: ${r.place || 'لا يوجد'}</div>
+                    <div style="font-size:11px; color:#999; margin-bottom:10px;">${r.content}</div>
+                    <div class="stamp stamp-green" style="bottom:40px;">CLOSED</div>
+                    <div style="font-size:9px; color:#555;">By: ${r.author}</div>
+                    <div style="margin-top:10px;" onclick="event.stopPropagation()">
                         ${hasPerm ? `<button class="del-btn" onclick="deleteItem('reports',${r.id}, '${authorPart}')">حذف</button>` : ''}
                         ${hasPerm ? `<button class="edit-report-btn" onclick='prepareEditReport(${JSON.stringify(r)})'>تعديل</button>` : ''}
-                    </div></div></div>`;
-                }
-            });
-            c.innerHTML = h + "</div>";
+                        <button class="official-report-btn" onclick='showOfficialReport(${JSON.stringify(r)})'>عرض التقرير الرسمي</button>
+                    </div>
+                </div>
+            </div>`;
         }
+    });
+    c.innerHTML = h + "</div>";
+}
+
 
         async function suspendAgent(agentName) {
             const reason = prompt("يرجى كتابة سبب الإيقاف عن العمل:"); if(!reason) return;
@@ -1495,7 +1538,106 @@ async function deleteMember(id, gangId) {
 
     loadMembers(gangId);
 }
- 
+function showOfficialReport(r){
+  document.getElementById('report-id').innerText = r.report_num || "غير محدد";
+  document.getElementById('report-suspect').innerText = r.author_id || "غير معروف";
+  document.getElementById('report-charges').innerText = r.status || "لا يوجد";
+  document.getElementById('report-punishment').innerText = r.place || "لا يوجد";
+  document.getElementById('report-content').innerText = r.content || "لا يوجد تفاصيل";
+  document.getElementById('report-signature').innerText = "التوقيع: " + (r.author || "SYSTEM");
+
+  // التاريخ الحالي
+  const today = new Date();
+  document.getElementById('report-date').innerText = today.toLocaleDateString('ar-EG');
+
+  // صورة المتهم بجانب الاسم
+  const imgEl = document.getElementById('report-img');
+  if(r.img_url){
+    imgEl.src = r.img_url;
+    imgEl.style.display = "block";
+  } else {
+    imgEl.style.display = "none";
+  }
+
+  document.getElementById('official-report-modal').style.display = 'block';
+
+  // تشغيل تأثير الختم (يظهر تدريجيًا)
+  let stamp = document.getElementById('report-stamp');
+  if(stamp) stamp.style.opacity = 1;
+}
+
+function closeOfficialReport(){
+  document.getElementById('official-report-modal').style.display = 'none';
+  let stamp = document.getElementById('report-stamp');
+  if(stamp) stamp.style.opacity = 0;
+}
+
+
   </script>
+‏<div id="official-report-modal" style="display:none; position:fixed; top:3%; left:50%; transform:translateX(-50%);
+‏background:#fff; border:2px solid #8B0000; padding:50px; width:700px; box-shadow:0 0 40px rgba(0,0,0,0.7); z-index:9999; font-family:'Times New Roman', serif; line-height:1.9; color:#000; position:relative;">
+
+  <!-- رأس التقرير -->
+‏  <div style="text-align:center; border-bottom:3px double #8B0000; padding-bottom:15px; margin-bottom:25px;">
+‏    <h2 style="margin:0; font-size:22px; color:#000;">مكتب التحقيقات الجنائية</h2>
+‏    <h3 style="margin:0; font-size:18px; color:#000;">إلى إدارة مكتب التحقيقات الجنائية</h3>
+‏    <p style="margin-top:10px;">أما بعد ......</p>
+‏  </div>
+
+  <!-- ختم رسمي أعلى يسار -->
+‏  <div style="position:absolute; top:25px; left:25px;">
+‏    <img src="https://cdn.discordapp.com/attachments/1156229090324529303/1485986660830416946/IMG_0320.png?ex=69c4852c&is=69c333ac&hm=15e2bbab85d327aa01e678608bf7a307e91aabb7867403cab7f3964d4220f998&" alt="ختم رسمي" style="width:120px; opacity:1;">
+‏  </div>
+
+  <!-- تفاصيل التقرير -->
+‏  <p><strong style="color:#8B0000;">رقم الملف:</strong> <span id="report-id"></span></p>
+
+‏  <div style="display:flex; align-items:center; gap:20px; margin:15px 0;">
+‏    <p style="margin:0;"><strong style="color:#8B0000;">الاسم:</strong> <span id="report-suspect" style="color:#1a2a4f; font-weight:bold;"></span></p>
+‏    <img id="report-img" src="" alt="صورة المتهم" style="width:120px; height:140px; border:2px solid #8B0000; object-fit:cover; display:none;">
+‏  </div>
+
+‏  <p><strong style="color:#8B0000;">التهم:</strong> <span id="report-charges"></span></p>
+‏  <p><strong style="color:#8B0000;">العقوبة:</strong> <span id="report-punishment"></span></p>
+‏  <p><strong style="color:#8B0000;">التفاصيل:</strong></p>
+
+  <!-- محتوى التقرير -->
+‏  <div id="report-content" style="margin:15px 0; padding:20px; border:1px solid #8B0000; background:#f9f9f9; position:relative; min-height:200px;">
+‏    <img src="PUT-YOUR-STAMP-LINK-HERE" alt="ختم رسمي" 
+‏         style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:300px; opacity:0.15; z-index:0; pointer-events:none;">
+‏    <div style="position:relative; z-index:1; background:rgba(255,255,255,0.7); padding:10px;">
+‏      <p>هنا تفاصيل التقرير الرسمي تظهر فوق الختم الشفاف</p>
+‏    </div>
+‏  </div>
+
+  <!-- التاريخ والتوقيع -->
+‏  <div style="display:flex; justify-content:space-between; margin-top:20px; align-items:center;">
+‏    <p style="font-style:italic; font-size:16px; color:#000; margin:0;">
+‏      <strong style="color:#8B0000;">التاريخ:</strong> 
+‏      <span id="report-date" style="direction:ltr; unicode-bidi:embed; font-family:'Arial', sans-serif;"></span>
+‏    </p>
+‏    <p id="report-signature" style="font-style:italic; font-size:16px; color:#000; margin:0;">
+      التوقيع: ____________
+‏    </p>
+‏  </div>
+
+  <!-- تذييل رسمي -->
+‏  <div style="border-top:2px solid #8B0000; margin-top:40px; padding-top:10px; text-align:center; font-size:12px; color:#000;">
+‏    Top secret information from detectives in red storm
+‏  </div>
+
+  <!-- زر إغلاق -->
+‏  <div style="text-align:center; margin-top:30px;">
+‏    <button onclick="closeOfficialReport()" style="padding:12px 30px; border:1px solid #8B0000; background:#eee; cursor:pointer; font-size:14px; color:#000;">إغلاق</button>
+‏  </div>
+‏</div>
+
+
+
+
+
+
+
+
 </body>
 </html>

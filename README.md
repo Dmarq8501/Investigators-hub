@@ -1,1 +1,1 @@
-# ia-terminal
+# investigators-hub

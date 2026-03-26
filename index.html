@@ -383,6 +383,7 @@
             <div class="category-box" onclick="showContent('reports')"><span class="icon">📄</span><h3>التقارير</h3></div>
             <div class="category-box" onclick="showContent('signals')"><span class="icon">📞</span><h3>الاتصالات</h3></div>
             <div class="category-box" onclick="showContent('map')"><span class="icon">📍</span><h3>تحديد المواقع الجغرافية</h3></div>
+
             
             <div id="stats-btn" class="category-box" onclick="showContent('stats')" style="display:none;"><span class="icon">📊</span><h3>الإحصائيات</h3></div>
             <div id="points-btn" class="category-box" onclick="showContent('points_manager')" style="display:none; border: 1px solid var(--red);"><span class="icon">🎯</span><h3>إدارة النقاط</h3></div>
@@ -636,6 +637,22 @@ async function renderMap(container) {
     const isAuthorizedToDraw = (currentUserRank === "DIRECTOR" || currentUserRank === "DEPUTY");
 
     container.innerHTML = `
+        <div id="map-data-form" style="background:#111; padding:10px; border:1px solid var(--red); margin-bottom:10px;">
+            <label style="color:#ffcc00;">اسم المكان:</label>
+            <input type="text" id="placeName" placeholder="اكتب اسم المكان" style="width:100%; margin-bottom:8px;">
+            
+            <label style="color:#ffcc00;">وصف المكان:</label>
+            <textarea id="placeDesc" placeholder="اكتب وصف/تفاصيل المكان" style="width:100%; margin-bottom:8px;"></textarea>
+            
+            <label style="color:#ffcc00;">روابط الصور:</label>
+            <div id="imageLinks" style="display:flex; flex-direction:column; gap:5px;">
+                <input type="text" class="imgInput" placeholder="رابط الصورة 1" style="width:100%;">
+                <input type="text" class="imgInput" placeholder="رابط الصورة 2" style="width:100%;">
+                <input type="text" class="imgInput" placeholder="رابط الصورة 3" style="width:100%;">
+                <input type="text" class="imgInput" placeholder="رابط الصورة 4" style="width:100%;">
+            </div>
+        </div>
+
         <div id="map-controls" style="background:#111; padding:10px; border:1px solid var(--red); display:${isAuthorizedToDraw ? 'flex' : 'none'}; gap:15px; align-items:center; margin-bottom:5px;">
             <div style="display:flex; align-items:center; gap:8px;">
                 <label style="font-size:10px; color:#888;">اللون:</label>
@@ -647,6 +664,7 @@ async function renderMap(container) {
             </div>
             <span style="font-size:9px; color:var(--red); margin-right:auto; letter-spacing:1px;">COMMANDER OVERRIDE ACTIVE</span>
         </div>
+
         <div id="leaflet-map" style="width:100%; height:600px; background:#050505; border:1px solid #333;"></div>
     `;
 
@@ -669,9 +687,16 @@ async function renderMap(container) {
             const layer = event.layer;
             const color = document.getElementById('draw-color').value;
             const opacity = document.getElementById('draw-opacity').value;
-            
-            // طلب تسمية الموقع
-            const locationName = prompt("أدخل مسمى لهذا الموقع (اختياري):") || "موقع محدد";
+
+            // أخذ البيانات من النموذج فوق الخريطة
+            const locationName = document.getElementById("placeName").value.trim() || "موقع محدد";
+            const locationInfo = document.getElementById("placeDesc").value.trim() || "";
+
+            // جمع روابط الصور من المربعات
+            const imgInputs = document.querySelectorAll(".imgInput");
+            const imgUrls = Array.from(imgInputs)
+                .map(input => input.value.trim())
+                .filter(url => url !== "");
 
             if (layer.setStyle) layer.setStyle({ color: color, fillColor: color, fillOpacity: opacity });
 
@@ -683,13 +708,20 @@ async function renderMap(container) {
                     fillColor: color, 
                     fillOpacity: parseFloat(opacity), 
                     weight: 2,
-                    location_name: locationName // حفظ الاسم في الخيارات
+                    location_name: locationName,
+                    location_info: locationInfo,
+                    location_images: imgUrls
                 },
                 created_by: `${RANK_DISPLAY_NAMES[currentUserRank]} | ${currentUserName}`
             };
 
             await fetch(`${SB_URL}/map_drawings`, { method: 'POST', headers, body: JSON.stringify(drawingData) });
             loadSavedDrawings(); // تحديث فوري
+
+            // مسح النموذج بعد حفظ التحديد
+            document.getElementById("placeName").value = "";
+            document.getElementById("placeDesc").value = "";
+            imgInputs.forEach(input => input.value = "");
         });
 
         map.on(L.Draw.Event.DELETED, async function (event) {
@@ -705,29 +737,39 @@ async function renderMap(container) {
     }
 }
 
+// تحميل الرسومات المحفوظة
 async function loadSavedDrawings() {
     try {
         const res = await fetch(`${SB_URL}/map_drawings?select=*`, { headers });
         const data = await res.json();
         drawnItems.clearLayers();
+
         data.forEach(d => {
             let layer;
             if (d.type === 'polygon') layer = L.polygon(d.data, d.options);
             else if (d.type === 'rectangle') layer = L.rectangle(d.data, d.options);
             else if (d.type === 'circle') layer = L.circle(d.data.latlng, { radius: d.data.radius, ...d.options });
-            
+
             if(layer) {
                 const isAuthorized = (currentUserRank === "DIRECTOR" || currentUserRank === "DEPUTY");
                 const locName = d.options.location_name || "موقع محدد";
-                
-                let popupContent = `<div style="text-align:center; font-family:monospace; min-width:120px;">
-                    <b style="color:var(--red); font-size:14px; border-bottom:1px solid #444; display:block; padding-bottom:5px; margin-bottom:5px;">${locName}</b>
-                    <small style="color:#888;">المسؤول: ${d.created_by}</small><br>`;
-                
+
+                let popupContent = `
+                    <div style="text-align:center; font-family:monospace; min-width:150px;">
+                        <b style="color:var(--red); font-size:14px;">${locName}</b><br>
+                        <button onclick="showPlaceDetails(${d.id})" 
+                            style="background:#222; color:var(--red); border:1px solid var(--red); 
+                            padding:5px 10px; margin-top:10px; cursor:pointer; font-weight:bold; 
+                            width:100%; font-size:10px;">عرض تفاصيل المكان</button>
+                `;
+
                 if(isAuthorized) {
-                    popupContent += `<button onclick="deleteSingleDrawing(${d.id})" style="background:red; color:white; border:none; padding:5px 10px; margin-top:10px; cursor:pointer; font-weight:bold; width:100%; font-size:10px;">حذف التحديد</button>`;
+                    popupContent += `<button onclick="deleteSingleDrawing(${d.id})" 
+                        style="background:red; color:white; border:none; padding:5px 10px; 
+                        margin-top:10px; cursor:pointer; font-weight:bold; width:100%; font-size:10px;">
+                        حذف التحديد</button>`;
                 }
-                
+
                 popupContent += `</div>`;
                 layer.bindPopup(popupContent);
                 drawnItems.addLayer(layer);
@@ -736,6 +778,109 @@ async function loadSavedDrawings() {
     } catch(e) { console.error("Realtime map sync error", e); }
 }
 
+// عرض التفاصيل كتقرير رسمي (تفاصيل فوق – صور تحت)
+async function showPlaceDetails(drawingId) {
+    try {
+        const res = await fetch(`${SB_URL}/map_drawings?id=eq.${drawingId}`, { headers });
+        const data = await res.json();
+        if(data.length === 0) return alert("لا توجد بيانات محفوظة لهذا المكان.");
+
+        const d = data[0];
+        const galleryHtml = (d.options.location_images || [])
+            .filter(img => img.trim() !== "")
+            .map(img => `<img src="${img}" style="width:120px;height:120px;margin:5px;border:2px solid #444;object-fit:cover;">`)
+            .join("");
+
+        document.getElementById("content-body").innerHTML = `
+            <div class="report-card" style="display:flex; flex-direction:column; gap:20px;">
+                
+                <!-- التفاصيل فوق -->
+                <div style="flex:1;">
+                    <h2 style="color:var(--red); text-align:center;">تقرير رسمي للمكان</h2>
+                    <p><b>اسم الموقع:</b> ${d.options.location_name}</p>
+                    <p><b>الوصف:</b> ${d.options.location_info || "لا يوجد وصف"}</p>
+                    <p><b>المسؤول:</b> ${d.created_by}</p>
+
+                    <!-- زر تعديل البيانات -->
+                    <button onclick="openEditDetailsForm(${d.id}, '${d.options.location_name}', '${d.options.location_info}', ${JSON.stringify(d.options.location_images)})" 
+                        style="margin-top:15px; background:#222; color:var(--red); border:1px solid var(--red); padding:8px 15px; cursor:pointer;">
+                        تعديل البيانات
+                    </button>
+
+                    <!-- زر إغلاق التقرير -->
+                    <button onclick="returnToSelection(${d.id})" 
+                        style="margin-top:10px; background:#444; color:#fff; border:none; padding:8px 15px; cursor:pointer;">
+                        إغلاق التقرير
+                    </button>
+                </div>
+
+                <!-- الصور تحت -->
+                <div style="flex:1; display:flex; flex-wrap:wrap; justify-content:center;">
+                    ${galleryHtml ? galleryHtml : "<p style='color:#888;'>لا توجد صور</p>"}
+                </div>
+            </div>
+        `;
+        document.getElementById("display-area").style.display = "block";
+    } catch(e) { alert("خطأ في تحميل التفاصيل."); }
+}
+
+// عند الإغلاق يرجع مباشرة إلى مكان التحديد
+function returnToSelection(drawingId) {
+    document.getElementById("display-area").style.display = "none";
+    // فتح البوب أب الأساسي للتحديد مباشرة
+    loadSavedDrawings();
+    setTimeout(() => {
+        const layer = drawnItems.getLayers().find(l => l.feature && l.feature.id === drawingId);
+        if(layer) layer.openPopup();
+    }, 500);
+}
+
+// فتح نموذج تعديل البيانات
+function openEditDetailsForm(drawingId, currentName, currentInfo, currentImages) {
+    document.getElementById("content-body").innerHTML = `
+        <h3 style="color:var(--red);">تعديل تفاصيل المكان</h3>
+        <form id="editForm">
+            <input type="text" id="editName" value="${currentName}" placeholder="اسم المكان" style="margin-bottom:10px;">
+            <textarea id="editDesc" placeholder="الوصف التفصيلي" style="margin-bottom:10px;">${currentInfo}</textarea>
+            <div id="editImageLinks" style="display:flex; flex-direction:column; gap:5px;">
+                ${(currentImages || []).map((img, i) => `<input type="text" class="editImgInput" value="${img}" placeholder="رابط الصورة ${i+1}" style="width:100%;">`).join("")}
+                <input type="text" class="editImgInput" placeholder="رابط صورة جديد" style="width:100%;">
+            </div>
+            <button type="button" onclick="saveEditedDetails(${drawingId})"
+                style="margin-top:10px; background:var(--red); color:#000; padding:10px; font-weight:bold; cursor:pointer;">
+                حفظ التعديلات
+            </button>
+        </form>
+    `;
+}
+
+// حفظ التعديلات
+async function saveEditedDetails(drawingId) {
+    const name = document.getElementById("editName").value.trim();
+    const desc = document.getElementById("editDesc").value.trim();
+    const imgInputs = document.querySelectorAll(".editImgInput");
+    const imgUrls = Array.from(imgInputs)
+        .map(input => input.value.trim())
+        .filter(url => url !== "");
+
+    try {
+        await fetch(`${SB_URL}/map_drawings?id=eq.${drawingId}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({
+                options: {
+                    location_name: name || "موقع محدد",
+                    location_info: desc || "",
+                    location_images: imgUrls
+                }
+            })
+        });
+        alert("تم حفظ التعديلات بنجاح.");
+        showPlaceDetails(drawingId); // إعادة فتح التقرير بعد التعديل
+    } catch(e) { alert("خطأ أثناء حفظ التعديلات."); }
+}
+
+// حذف التحديد
 async function deleteSingleDrawing(drawingId) {
     if(confirm("هل أنت متأكد من حذف هذا التحديد نهائياً للجميع؟")) {
         try {
